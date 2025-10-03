@@ -53,6 +53,9 @@ const (
 
 	// Configuration errors
 	ErrCodeConfigLoad = "CONFIG_LOAD_ERROR"
+
+	// User errors
+	ErrCodeUserNotFound = "USER_NOT_FOUND"
 )
 
 // Predefined errors
@@ -69,6 +72,8 @@ var (
 	ErrDBQuery      = NewAppError(ErrCodeDBQuery, "Database query error", http.StatusInternalServerError)
 
 	ErrConfigLoad = NewAppError(ErrCodeConfigLoad, "Configuration load error", http.StatusInternalServerError)
+
+	ErrUserNotFound = NewAppError(ErrCodeUserNotFound, "User not found", http.StatusNotFound)
 )
 
 // Response represents a standard API response

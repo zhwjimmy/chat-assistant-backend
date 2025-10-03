@@ -8,12 +8,27 @@ import (
 
 	"go.uber.org/zap"
 
+	"chat-assistant-backend/internal"
 	"chat-assistant-backend/internal/config"
+	"chat-assistant-backend/internal/docs"
 	"chat-assistant-backend/internal/logger"
-	"chat-assistant-backend/internal/server"
 )
 
+// @title Chat Assistant Backend API
+// @version 1.0.0
+// @description A RESTful API for the Chat Assistant Backend service. This API provides endpoints for managing users, conversations, and messages.
+// @contact.name Chat Assistant Team
+// @contact.email support@chatassistant.com
+// @license.name MIT
+// @license.url https://opensource.org/licenses/MIT
+// @host localhost:8080
+// @BasePath /
 func main() {
+	// Initialize Swagger docs
+	docs.SwaggerInfo.Host = "localhost:8080"
+	docs.SwaggerInfo.BasePath = "/"
+	docs.SwaggerInfo.Schemes = []string{"http", "https"}
+
 	// Load configuration
 	cfg, err := config.Load()
 	if err != nil {
@@ -32,12 +47,15 @@ func main() {
 		zap.String("go_version", "1.23.1"),
 	)
 
-	// Create and start server
-	srv := server.New(cfg)
+	// Initialize application with Wire dependency injection
+	server, err := internal.InitializeApp()
+	if err != nil {
+		log.Fatal("Failed to initialize application", zap.Error(err))
+	}
 
-	// Start server in a goroutine
+	// Start server
 	go func() {
-		if err := srv.Start(); err != nil {
+		if err := server.Start(); err != nil {
 			log.Error("Failed to start server", zap.Error(err))
 			os.Exit(1)
 		}
@@ -55,7 +73,7 @@ func main() {
 	defer cancel()
 
 	// Attempt graceful shutdown
-	if err := srv.Stop(ctx); err != nil {
+	if err := server.Stop(ctx); err != nil {
 		log.Error("Server forced to shutdown", zap.Error(err))
 		os.Exit(1)
 	}

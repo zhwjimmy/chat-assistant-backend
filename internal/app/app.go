@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 
 	"chat-assistant-backend/internal/config"
 	"chat-assistant-backend/internal/logger"
@@ -18,10 +19,10 @@ type App struct {
 }
 
 // New creates a new application instance
-func New(cfg *config.Config) *App {
+func New(cfg *config.Config, db *gorm.DB) *App {
 	return &App{
 		config: cfg,
-		server: server.New(cfg),
+		server: server.New(cfg, db),
 		logger: logger.GetLogger(),
 	}
 }

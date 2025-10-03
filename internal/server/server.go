@@ -9,10 +9,17 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 
 	"chat-assistant-backend/internal/config"
+	"chat-assistant-backend/internal/handlers"
 	"chat-assistant-backend/internal/logger"
+	"chat-assistant-backend/internal/repositories"
+	"chat-assistant-backend/internal/services"
+
+	"gorm.io/gorm"
 )
 
 // Server represents the HTTP server
@@ -24,7 +31,7 @@ type Server struct {
 }
 
 // New creates a new server instance
-func New(cfg *config.Config) *Server {
+func New(cfg *config.Config, db *gorm.DB) *Server {
 	// Set Gin mode
 	if cfg.Logging.Level == "debug" {
 		gin.SetMode(gin.DebugMode)
@@ -33,15 +40,30 @@ func New(cfg *config.Config) *Server {
 	}
 
 	router := gin.New()
-	
+
 	// Add middlewares
 	router.Use(gin.Recovery())
 	router.Use(requestIDMiddleware())
 	router.Use(loggingMiddleware())
 	router.Use(corsMiddleware(cfg.CORS))
 
+	// Initialize repositories
+	userRepo := repositories.NewUserRepository(db)
+
+	// Initialize services
+	userService := services.NewUserService(userRepo)
+
+	// Initialize handlers
+	userHandler := handlers.NewUserHandler(userService)
+
 	// Add health check endpoint
 	router.GET("/health", healthCheckHandler)
+
+	// Add API routes
+	api := router.Group("/api/v1")
+	{
+		api.GET("/users/:id", userHandler.GetUser)
+	}
 
 	server := &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
@@ -72,12 +94,12 @@ func (s *Server) Start() error {
 // Stop gracefully stops the HTTP server
 func (s *Server) Stop(ctx context.Context) error {
 	s.logger.Info("Stopping HTTP server...")
-	
+
 	if err := s.server.Shutdown(ctx); err != nil {
 		s.logger.Error("Failed to shutdown server", zap.Error(err))
 		return err
 	}
-	
+
 	s.logger.Info("HTTP server stopped")
 	return nil
 }
@@ -94,7 +116,7 @@ func requestIDMiddleware() gin.HandlerFunc {
 		if requestID == "" {
 			requestID = uuid.New().String()
 		}
-		
+
 		c.Header("X-Request-ID", requestID)
 		c.Set("request_id", requestID)
 		c.Next()
@@ -117,13 +139,13 @@ func loggingMiddleware() gin.HandlerFunc {
 		method := c.Request.Method
 		statusCode := c.Writer.Status()
 		bodySize := c.Writer.Size()
-		
+
 		if raw != "" {
 			path = path + "?" + raw
 		}
 
 		requestID, _ := c.Get("request_id")
-		
+
 		logger.WithRequestID(requestID.(string)).Info("HTTP Request",
 			zap.String("method", method),
 			zap.String("path", path),
@@ -144,8 +166,53 @@ func corsMiddleware(cfg config.CORSConfig) gin.HandlerFunc {
 		AllowCredentials: cfg.AllowCredentials,
 		MaxAge:           12 * time.Hour,
 	}
-	
+
 	return cors.New(corsConfig)
+}
+
+// NewWithDependencies creates a new server instance with pre-initialized dependencies
+func NewWithDependencies(cfg *config.Config, db *gorm.DB, userHandler *handlers.UserHandler) *Server {
+	// Set Gin mode
+	if cfg.Logging.Level == "debug" {
+		gin.SetMode(gin.DebugMode)
+	} else {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.New()
+
+	// Add middlewares
+	router.Use(gin.Recovery())
+	router.Use(requestIDMiddleware())
+	router.Use(loggingMiddleware())
+	router.Use(corsMiddleware(cfg.CORS))
+
+	// Add health check endpoint
+	router.GET("/health", healthCheckHandler)
+
+	// Add Swagger documentation endpoint
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(files.Handler))
+
+	// Add API routes
+	api := router.Group("/api/v1")
+	{
+		api.GET("/users/:id", userHandler.GetUser)
+	}
+
+	server := &http.Server{
+		Addr:         fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port),
+		Handler:      router,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
+	}
+
+	return &Server{
+		config: cfg,
+		router: router,
+		server: server,
+		logger: logger.GetLogger(),
+	}
 }
 
 // healthCheckHandler handles health check requests

@@ -1,0 +1,85 @@
+basePath: /
+definitions:
+  response.ErrorInfo:
+    properties:
+      code:
+        type: string
+      details:
+        type: string
+      message:
+        type: string
+    type: object
+  response.Response:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/response.ErrorInfo'
+      success:
+        type: boolean
+    type: object
+  response.UserResponse:
+    properties:
+      avatar:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      updated_at:
+        type: string
+      username:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@chatassistant.com
+    name: Chat Assistant Team
+  description: A RESTful API for the Chat Assistant Backend service. This API provides
+    endpoints for managing users, conversations, and messages.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Chat Assistant Backend API
+  version: 1.0.0
+paths:
+  /api/v1/users/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific user by ID
+      parameters:
+      - description: User ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User details
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.UserResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get User
+      tags:
+      - Users
+swagger: "2.0"

@@ -126,7 +126,7 @@ gen-swagger:
 	@echo "Generating Swagger documentation..."
 	@if command -v swag > /dev/null; then \
 		swag init -g cmd/server/main.go -o internal/docs; \
-		@echo "Swagger documentation generated in internal/docs/"; \
+		echo "Swagger documentation generated in internal/docs/"; \
 	else \
 		echo "Swag not installed. Install with: go install github.com/swaggo/swag/cmd/swag@latest"; \
 	fi
@@ -136,7 +136,7 @@ gen-wire:
 	@echo "Generating Wire dependency injection..."
 	@if command -v wire > /dev/null; then \
 		cd internal && wire; \
-		@echo "Wire files generated"; \
+		echo "Wire files generated"; \
 	else \
 		echo "Wire not installed. Install with: go install github.com/google/wire/cmd/wire@latest"; \
 	fi
