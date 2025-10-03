@@ -1,0 +1,119 @@
+# Cursor ignore file - files and directories to exclude from Cursor indexing
+
+# Build artifacts and binaries
+/bin/
+/dist/
+/build/
+/out/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Application binary
+/{{PROJECT_NAME}}
+/chat-assistant-backend
+
+# Dependencies
+vendor/
+node_modules/
+
+# Generated files
+# Wire generated files
+wire_gen.go
+
+# Swagger generated files
+/docs/
+/swagger/
+
+# Logs
+*.log
+logs/
+/logs/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+/tmp/
+/temp/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Coverage files
+coverage/
+*.cover
+*.coverprofile
+coverage.txt
+coverage.html
+
+# Profiling files
+*.prof
+*.pprof
+
+# Air live reload
+.air.toml
+
+# Go modules
+go.sum
+
+# Local development
+local/
+dev/
+
+# Backup files
+*.bak
+*.backup
+
+# Archive files
+*.tar
+*.tar.gz
+*.zip
+*.rar
+
+# Configuration files with sensitive data
+config/config.local.yaml
+config/config.production.yaml
+config/*.secret.yaml
+
+# Migration state files (keep migration files but ignore state)
+# Add specific migration state files if any
+
+# Test files (optional - uncomment if you want to exclude test files from indexing)
+# *_test.go
+# test/
+
+# Documentation that might be large
+# docs/
+# README.md (uncomment if you want to exclude README from indexing)
+
+# Project specific exclusions
+# Add any project-specific files or directories to exclude from Cursor indexing
