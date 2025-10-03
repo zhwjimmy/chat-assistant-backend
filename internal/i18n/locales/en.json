@@ -1,0 +1,29 @@
+{
+  "errors": {
+    "internal": "Internal server error",
+    "not_found": "Resource not found",
+    "bad_request": "Bad request",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Forbidden",
+    "conflict": "Resource conflict",
+    "validation": "Validation error",
+    "db_connection": "Database connection error",
+    "db_query": "Database query error",
+    "db_migration": "Database migration error",
+    "config_load": "Configuration load error"
+  },
+  "messages": {
+    "server_started": "Server started successfully",
+    "server_stopped": "Server stopped",
+    "health_check": "Service is healthy",
+    "graceful_shutdown": "Graceful shutdown initiated"
+  },
+  "validation": {
+    "required": "This field is required",
+    "invalid_format": "Invalid format",
+    "too_short": "Value is too short",
+    "too_long": "Value is too long",
+    "invalid_email": "Invalid email format",
+    "invalid_uuid": "Invalid UUID format"
+  }
+}

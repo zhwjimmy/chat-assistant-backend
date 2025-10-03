@@ -1,0 +1,29 @@
+{
+  "errors": {
+    "internal": "内部服务器错误",
+    "not_found": "资源未找到",
+    "bad_request": "请求错误",
+    "unauthorized": "未授权",
+    "forbidden": "禁止访问",
+    "conflict": "资源冲突",
+    "validation": "验证错误",
+    "db_connection": "数据库连接错误",
+    "db_query": "数据库查询错误",
+    "db_migration": "数据库迁移错误",
+    "config_load": "配置加载错误"
+  },
+  "messages": {
+    "server_started": "服务器启动成功",
+    "server_stopped": "服务器已停止",
+    "health_check": "服务运行正常",
+    "graceful_shutdown": "开始优雅关闭"
+  },
+  "validation": {
+    "required": "此字段为必填项",
+    "invalid_format": "格式无效",
+    "too_short": "值太短",
+    "too_long": "值太长",
+    "invalid_email": "邮箱格式无效",
+    "invalid_uuid": "UUID格式无效"
+  }
+}
