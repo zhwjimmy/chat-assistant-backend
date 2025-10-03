@@ -1,5 +1,29 @@
 basePath: /
 definitions:
+  response.ConversationListResponse:
+    properties:
+      conversations:
+        items:
+          $ref: '#/definitions/response.ConversationResponse'
+        type: array
+    type: object
+  response.ConversationResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      model:
+        type: string
+      provider:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+      user_id:
+        type: string
+    type: object
   response.ErrorInfo:
     properties:
       code:
@@ -8,6 +32,49 @@ definitions:
         type: string
       message:
         type: string
+    type: object
+  response.MessageListResponse:
+    properties:
+      messages:
+        items:
+          $ref: '#/definitions/response.MessageResponse'
+        type: array
+    type: object
+  response.MessageResponse:
+    properties:
+      content:
+        type: string
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      role:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  response.PaginatedResponse:
+    properties:
+      data: {}
+      error:
+        $ref: '#/definitions/response.ErrorInfo'
+      pagination:
+        $ref: '#/definitions/response.PaginationInfo'
+      success:
+        type: boolean
+    type: object
+  response.PaginationInfo:
+    properties:
+      limit:
+        type: integer
+      page:
+        type: integer
+      total:
+        type: integer
+      total_pages:
+        type: integer
     type: object
   response.Response:
     properties:
@@ -43,6 +110,279 @@ info:
   title: Chat Assistant Backend API
   version: 1.0.0
 paths:
+  /api/v1/conversations:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve conversations list with pagination
+      parameters:
+      - description: User ID
+        format: uuid
+        in: query
+        name: user_id
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Conversations list
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.PaginatedResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.ConversationListResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get Conversations
+      tags:
+      - Conversations
+  /api/v1/conversations/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a specific conversation by ID
+      parameters:
+      - description: Conversation ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Conversation deleted successfully
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Conversation not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Delete Conversation
+      tags:
+      - Conversations
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific conversation by ID
+      parameters:
+      - description: Conversation ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Conversation details
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.ConversationResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Conversation not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get Conversation
+      tags:
+      - Conversations
+  /api/v1/conversations/{id}/messages:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all messages in a specific conversation with pagination
+      parameters:
+      - description: Conversation ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Messages list
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.PaginatedResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.MessageListResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get Conversation Messages
+      tags:
+      - Conversations
+  /api/v1/messages:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve messages list with pagination
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Messages list
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.PaginatedResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.MessageListResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get Messages
+      tags:
+      - Messages
+  /api/v1/messages/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a specific message by ID
+      parameters:
+      - description: Message ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Message deleted successfully
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Message not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Delete Message
+      tags:
+      - Messages
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific message by ID
+      parameters:
+      - description: Message ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Message details
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.MessageResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Message not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get Message
+      tags:
+      - Messages
   /api/v1/users/{id}:
     get:
       consumes:

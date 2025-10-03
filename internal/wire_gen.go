@@ -29,9 +29,15 @@ func InitializeApp() (*server.Server, error) {
 		return nil, err
 	}
 	userRepository := repositories.NewUserRepository(db)
+	conversationRepository := repositories.NewConversationRepository(db)
+	messageRepository := repositories.NewMessageRepository(db)
 	userService := services.NewUserService(userRepository)
+	conversationService := services.NewConversationService(conversationRepository)
+	messageService := services.NewMessageService(messageRepository)
 	userHandler := handlers.NewUserHandler(userService)
-	serverServer := NewServerWithDependencies(configConfig, db, userRepository, userService, userHandler)
+	conversationHandler := handlers.NewConversationHandler(conversationService)
+	messageHandler := handlers.NewMessageHandler(messageService)
+	serverServer := NewServerWithDependencies(configConfig, db, userRepository, conversationRepository, messageRepository, userService, conversationService, messageService, userHandler, conversationHandler, messageHandler)
 	return serverServer, nil
 }
 
@@ -53,8 +59,14 @@ func NewServerWithDependencies(
 	cfg *config.Config,
 	db *gorm.DB,
 	userRepo *repositories.UserRepository,
+	conversationRepo *repositories.ConversationRepository,
+	messageRepo *repositories.MessageRepository,
 	userService *services.UserService,
+	conversationService *services.ConversationService,
+	messageService *services.MessageService,
 	userHandler *handlers.UserHandler,
+	conversationHandler *handlers.ConversationHandler,
+	messageHandler *handlers.MessageHandler,
 ) *server.Server {
-	return server.NewWithDependencies(cfg, db, userHandler)
+	return server.NewWithDependencies(cfg, db, userHandler, conversationHandler, messageHandler)
 }

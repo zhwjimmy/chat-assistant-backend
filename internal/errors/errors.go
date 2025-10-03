@@ -56,6 +56,12 @@ const (
 
 	// User errors
 	ErrCodeUserNotFound = "USER_NOT_FOUND"
+
+	// Conversation errors
+	ErrCodeConversationNotFound = "CONVERSATION_NOT_FOUND"
+
+	// Message errors
+	ErrCodeMessageNotFound = "MESSAGE_NOT_FOUND"
 )
 
 // Predefined errors
@@ -74,6 +80,9 @@ var (
 	ErrConfigLoad = NewAppError(ErrCodeConfigLoad, "Configuration load error", http.StatusInternalServerError)
 
 	ErrUserNotFound = NewAppError(ErrCodeUserNotFound, "User not found", http.StatusNotFound)
+
+	ErrConversationNotFound = NewAppError(ErrCodeConversationNotFound, "Conversation not found", http.StatusNotFound)
+	ErrMessageNotFound      = NewAppError(ErrCodeMessageNotFound, "Message not found", http.StatusNotFound)
 )
 
 // Response represents a standard API response

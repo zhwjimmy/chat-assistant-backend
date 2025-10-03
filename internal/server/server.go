@@ -49,12 +49,18 @@ func New(cfg *config.Config, db *gorm.DB) *Server {
 
 	// Initialize repositories
 	userRepo := repositories.NewUserRepository(db)
+	conversationRepo := repositories.NewConversationRepository(db)
+	messageRepo := repositories.NewMessageRepository(db)
 
 	// Initialize services
 	userService := services.NewUserService(userRepo)
+	conversationService := services.NewConversationService(conversationRepo)
+	messageService := services.NewMessageService(messageRepo)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
+	conversationHandler := handlers.NewConversationHandler(conversationService)
+	messageHandler := handlers.NewMessageHandler(messageService)
 
 	// Add health check endpoint
 	router.GET("/health", healthCheckHandler)
@@ -62,7 +68,19 @@ func New(cfg *config.Config, db *gorm.DB) *Server {
 	// Add API routes
 	api := router.Group("/api/v1")
 	{
+		// User routes
 		api.GET("/users/:id", userHandler.GetUser)
+
+		// Conversation routes
+		api.GET("/conversations", conversationHandler.GetConversations)
+		api.GET("/conversations/:id", conversationHandler.GetConversation)
+		api.DELETE("/conversations/:id", conversationHandler.DeleteConversation)
+		api.GET("/conversations/:id/messages", messageHandler.GetConversationMessages)
+
+		// Message routes
+		api.GET("/messages", messageHandler.GetMessages)
+		api.GET("/messages/:id", messageHandler.GetMessage)
+		api.DELETE("/messages/:id", messageHandler.DeleteMessage)
 	}
 
 	server := &http.Server{
@@ -171,7 +189,7 @@ func corsMiddleware(cfg config.CORSConfig) gin.HandlerFunc {
 }
 
 // NewWithDependencies creates a new server instance with pre-initialized dependencies
-func NewWithDependencies(cfg *config.Config, db *gorm.DB, userHandler *handlers.UserHandler) *Server {
+func NewWithDependencies(cfg *config.Config, db *gorm.DB, userHandler *handlers.UserHandler, conversationHandler *handlers.ConversationHandler, messageHandler *handlers.MessageHandler) *Server {
 	// Set Gin mode
 	if cfg.Logging.Level == "debug" {
 		gin.SetMode(gin.DebugMode)
@@ -196,7 +214,19 @@ func NewWithDependencies(cfg *config.Config, db *gorm.DB, userHandler *handlers.
 	// Add API routes
 	api := router.Group("/api/v1")
 	{
+		// User routes
 		api.GET("/users/:id", userHandler.GetUser)
+
+		// Conversation routes
+		api.GET("/conversations", conversationHandler.GetConversations)
+		api.GET("/conversations/:id", conversationHandler.GetConversation)
+		api.DELETE("/conversations/:id", conversationHandler.DeleteConversation)
+		api.GET("/conversations/:id/messages", messageHandler.GetConversationMessages)
+
+		// Message routes
+		api.GET("/messages", messageHandler.GetMessages)
+		api.GET("/messages/:id", messageHandler.GetMessage)
+		api.DELETE("/messages/:id", messageHandler.DeleteMessage)
 	}
 
 	server := &http.Server{
