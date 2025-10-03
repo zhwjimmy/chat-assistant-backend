@@ -7,6 +7,7 @@
 - [开发指南](development.md) - 完整的开发流程和环境配置
 - [Docker Compose 使用指南](docker-compose-guide.md) - Docker Compose 的详细使用说明
 - [Makefile 命令参考](makefile-commands.md) - 所有 Makefile 命令的详细说明
+- [环境变量配置指南](environment-configuration.md) - 环境变量配置和最佳实践
 
 ## 🚀 快速开始
 
