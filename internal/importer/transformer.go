@@ -18,10 +18,16 @@ func NewTransformer() *Transformer {
 	return &Transformer{}
 }
 
+// MessageWithConversationSource 包含消息和其所属对话的source_id
+type MessageWithConversationSource struct {
+	Message              *models.Message
+	ConversationSourceID string
+}
+
 // Transform 将标准化格式转换为数据库模型
-func (t *Transformer) Transform(data *types.StandardFormat, userID uuid.UUID, platform string) ([]*models.Conversation, []*models.Message, error) {
+func (t *Transformer) Transform(data *types.StandardFormat, userID uuid.UUID, platform string) ([]*models.Conversation, []*MessageWithConversationSource, error) {
 	var conversations []*models.Conversation
-	var messages []*models.Message
+	var messages []*MessageWithConversationSource
 
 	for _, stdConv := range data.Conversations {
 		// 转换对话
@@ -37,7 +43,10 @@ func (t *Transformer) Transform(data *types.StandardFormat, userID uuid.UUID, pl
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to transform message: %w", err)
 			}
-			messages = append(messages, msg)
+			messages = append(messages, &MessageWithConversationSource{
+				Message:              msg,
+				ConversationSourceID: stdConv.ID,
+			})
 		}
 	}
 
@@ -47,11 +56,14 @@ func (t *Transformer) Transform(data *types.StandardFormat, userID uuid.UUID, pl
 // transformConversation 转换对话
 func (t *Transformer) transformConversation(stdConv *types.StandardConversation, userID uuid.UUID, platform string) (*models.Conversation, error) {
 	conv := &models.Conversation{
-		UserID:   userID,
-		Title:    stdConv.Title,
-		Provider: platform,
-		Model:    stdConv.Model,
-		SourceID: stdConv.ID, // 使用原始数据中的ID作为SourceID
+		Base: models.Base{
+			ID: uuid.New(), // 手动生成UUID
+		},
+		UserID:      userID,
+		Provider:    platform,
+		Model:       stdConv.Model,
+		SourceID:    stdConv.ID, // 使用原始数据中的ID作为SourceID
+		SourceTitle: stdConv.Title,
 	}
 
 	// 设置时间
@@ -73,6 +85,9 @@ func (t *Transformer) transformConversation(stdConv *types.StandardConversation,
 // transformMessage 转换消息
 func (t *Transformer) transformMessage(stdMsg *types.StandardMessage, conversationID uuid.UUID) (*models.Message, error) {
 	msg := &models.Message{
+		Base: models.Base{
+			ID: uuid.New(), // 手动生成UUID
+		},
 		ConversationID: conversationID,
 		Role:           stdMsg.Role,
 		SourceID:       stdMsg.ID,

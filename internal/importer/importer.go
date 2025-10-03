@@ -9,9 +9,12 @@ import (
 	"chat-assistant-backend/internal/config"
 	"chat-assistant-backend/internal/importer/parsers"
 	"chat-assistant-backend/internal/logger"
+	"chat-assistant-backend/internal/repositories"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 )
 
 // Importer 核心导入器
@@ -35,9 +38,31 @@ type ImportResult struct {
 
 // NewImporter 创建导入器
 func NewImporter(cfg *config.Config) *Importer {
+	// 初始化数据库连接
+	dsn := cfg.Database.GetDSN()
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		// 如果数据库连接失败，返回一个没有数据库连接的导入器
+		// 这样在dry-run模式下仍然可以工作
+		return &Importer{
+			config:      cfg,
+			loader:      NewLoader(cfg),
+			validator:   NewValidator(),
+			transformer: NewTransformer(),
+		}
+	}
+
+	// 创建repositories
+	conversationRepo := repositories.NewConversationRepository(db)
+	messageRepo := repositories.NewMessageRepository(db)
+
+	// 创建loader并设置依赖
+	loader := NewLoader(cfg)
+	loader.SetDependencies(db, conversationRepo, messageRepo)
+
 	return &Importer{
 		config:      cfg,
-		loader:      NewLoader(cfg),
+		loader:      loader,
 		validator:   NewValidator(),
 		transformer: NewTransformer(),
 	}
@@ -85,7 +110,7 @@ func (i *Importer) Import(filePath, platform, userIDStr string, dryRun bool) (*I
 	}
 
 	// 转换数据
-	conversations, messages, err := i.transformer.Transform(standardData, userID, platform)
+	conversations, messagesWithSource, err := i.transformer.Transform(standardData, userID, platform)
 	if err != nil {
 		return nil, fmt.Errorf("transformation failed: %w", err)
 	}
@@ -93,7 +118,7 @@ func (i *Importer) Import(filePath, platform, userIDStr string, dryRun bool) (*I
 	result := &ImportResult{
 		Platform:          platform,
 		ConversationCount: len(conversations),
-		MessageCount:      len(messages),
+		MessageCount:      len(messagesWithSource),
 		SuccessCount:      len(conversations),
 		ErrorCount:        0,
 		Duration:          time.Since(startTime).String(),
@@ -101,7 +126,7 @@ func (i *Importer) Import(filePath, platform, userIDStr string, dryRun bool) (*I
 
 	// 如果不是dry run，写入数据库
 	if !dryRun {
-		if err := i.loader.Load(context.Background(), conversations, messages); err != nil {
+		if err := i.loader.Load(context.Background(), conversations, messagesWithSource); err != nil {
 			result.ErrorCount = 1
 			result.Errors = append(result.Errors, err.Error())
 			return result, fmt.Errorf("failed to load data: %w", err)
@@ -111,7 +136,7 @@ func (i *Importer) Import(filePath, platform, userIDStr string, dryRun bool) (*I
 	log.Info("Import completed",
 		zap.String("platform", platform),
 		zap.Int("conversations", len(conversations)),
-		zap.Int("messages", len(messages)),
+		zap.Int("messages", len(messagesWithSource)),
 		zap.String("duration", result.Duration),
 	)
 

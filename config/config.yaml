@@ -29,6 +29,9 @@ logging:
   format: "json" # json, console
   output: "stdout" # stdout, stderr, file
 
+import:
+  batch_size: 100  # 批量导入的大小
+
 i18n:
   default_language: "en"
   supported_languages: ["en", "zh"]

@@ -8,6 +8,7 @@ import (
 	"chat-assistant-backend/internal/models"
 	"chat-assistant-backend/internal/repositories"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -33,8 +34,8 @@ func (l *Loader) SetDependencies(db *gorm.DB, conversationRepo *repositories.Con
 	l.messageRepo = messageRepo
 }
 
-// Load 批量加载数据到数据库
-func (l *Loader) Load(ctx context.Context, conversations []*models.Conversation, messages []*models.Message) error {
+// Load 逐个处理数据到数据库，使用upsert确保幂等性
+func (l *Loader) Load(ctx context.Context, conversations []*models.Conversation, messagesWithSource []*MessageWithConversationSource) error {
 	if l.db == nil {
 		return fmt.Errorf("database connection not initialized")
 	}
@@ -50,19 +51,68 @@ func (l *Loader) Load(ctx context.Context, conversations []*models.Conversation,
 		}
 	}()
 
-	// 批量插入对话
-	if len(conversations) > 0 {
-		if err := tx.CreateInBatches(conversations, l.config.Import.BatchSize).Error; err != nil {
+	// 逐个处理对话，先查询再更新/创建
+	conversationIDMap := make(map[string]uuid.UUID) // 用于映射source_id到实际的conversation_id
+	for _, conv := range conversations {
+		var existingConv models.Conversation
+		// 根据业务唯一键查询：user_id + source_id
+		err := tx.Where("user_id = ? AND source_id = ?", conv.UserID, conv.SourceID).First(&existingConv).Error
+
+		if err == gorm.ErrRecordNotFound {
+			// 记录不存在，创建新记录
+			if err := tx.Create(conv).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to create conversation %s: %w", conv.SourceID, err)
+			}
+			conversationIDMap[conv.SourceID] = conv.ID
+		} else if err != nil {
+			// 查询出错
 			tx.Rollback()
-			return fmt.Errorf("failed to create conversations: %w", err)
+			return fmt.Errorf("failed to query conversation %s: %w", conv.SourceID, err)
+		} else {
+			// 记录存在，更新现有记录
+			conv.ID = existingConv.ID               // 保持原有ID
+			conv.CreatedAt = existingConv.CreatedAt // 保持原有创建时间
+			if err := tx.Save(conv).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to update conversation %s: %w", conv.SourceID, err)
+			}
+			conversationIDMap[conv.SourceID] = conv.ID
 		}
 	}
 
-	// 批量插入消息
-	if len(messages) > 0 {
-		if err := tx.CreateInBatches(messages, l.config.Import.BatchSize).Error; err != nil {
+	// 逐个处理消息，先查询再更新/创建
+	for _, msgWithSource := range messagesWithSource {
+		msg := msgWithSource.Message
+		// 使用正确的conversation_id（从conversationIDMap获取）
+		actualConversationID, exists := conversationIDMap[msgWithSource.ConversationSourceID]
+		if !exists {
 			tx.Rollback()
-			return fmt.Errorf("failed to create messages: %w", err)
+			return fmt.Errorf("conversation source_id %s not found in mapping", msgWithSource.ConversationSourceID)
+		}
+		msg.ConversationID = actualConversationID
+		var existingMsg models.Message
+		// 根据业务唯一键查询：conversation_id + source_id
+		err := tx.Where("conversation_id = ? AND source_id = ?", msg.ConversationID, msg.SourceID).First(&existingMsg).Error
+
+		if err == gorm.ErrRecordNotFound {
+			// 记录不存在，创建新记录
+			if err := tx.Create(msg).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to create message %s: %w", msg.SourceID, err)
+			}
+		} else if err != nil {
+			// 查询出错
+			tx.Rollback()
+			return fmt.Errorf("failed to query message %s: %w", msg.SourceID, err)
+		} else {
+			// 记录存在，更新现有记录
+			msg.ID = existingMsg.ID               // 保持原有ID
+			msg.CreatedAt = existingMsg.CreatedAt // 保持原有创建时间
+			if err := tx.Save(msg).Error; err != nil {
+				tx.Rollback()
+				return fmt.Errorf("failed to update message %s: %w", msg.SourceID, err)
+			}
 		}
 	}
 

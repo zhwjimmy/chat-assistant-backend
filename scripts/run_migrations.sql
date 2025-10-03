@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     provider VARCHAR(50) NOT NULL,
     model VARCHAR(50),
     source_id VARCHAR(255) NOT NULL,
+    source_title VARCHAR(500) NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     deleted_at TIMESTAMP WITH TIME ZONE
