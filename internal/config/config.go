@@ -15,6 +15,7 @@ type Config struct {
 	Logging  LoggingConfig  `mapstructure:"logging"`
 	I18n     I18nConfig     `mapstructure:"i18n"`
 	Shutdown ShutdownConfig `mapstructure:"shutdown"`
+	Import   ImportConfig   `mapstructure:"import"`
 }
 
 // ServerConfig holds server configuration
@@ -64,6 +65,21 @@ type I18nConfig struct {
 // ShutdownConfig holds graceful shutdown configuration
 type ShutdownConfig struct {
 	Timeout time.Duration `mapstructure:"timeout"`
+}
+
+// ImportConfig holds import configuration
+type ImportConfig struct {
+	MaxFileSize int64                     `mapstructure:"max_file_size"`
+	Timeout     time.Duration             `mapstructure:"timeout"`
+	BatchSize   int                       `mapstructure:"batch_size"`
+	TempDir     string                    `mapstructure:"temp_dir"`
+	Providers   map[string]ProviderConfig `mapstructure:"providers"`
+}
+
+// ProviderConfig holds provider-specific configuration
+type ProviderConfig struct {
+	Enabled          bool `mapstructure:"enabled"`
+	MaxConversations int  `mapstructure:"max_conversations"`
 }
 
 // Load loads configuration from file and environment variables
@@ -133,6 +149,18 @@ func setDefaults() {
 
 	// Shutdown defaults
 	viper.SetDefault("shutdown.timeout", "30s")
+
+	// Import defaults
+	viper.SetDefault("import.max_file_size", 104857600) // 100MB
+	viper.SetDefault("import.timeout", "600s")          // 10 minutes
+	viper.SetDefault("import.batch_size", 100)
+	viper.SetDefault("import.temp_dir", "/tmp/imports")
+	viper.SetDefault("import.providers.chatgpt.enabled", true)
+	viper.SetDefault("import.providers.chatgpt.max_conversations", 1000)
+	viper.SetDefault("import.providers.claude.enabled", true)
+	viper.SetDefault("import.providers.claude.max_conversations", 1000)
+	viper.SetDefault("import.providers.gemini.enabled", true)
+	viper.SetDefault("import.providers.gemini.max_conversations", 1000)
 }
 
 // GetDSN returns the database connection string

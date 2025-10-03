@@ -222,3 +222,6 @@ $RECYCLE.BIN/
 # Add any project-specific files or directories to ignore here
 
 project-prompt.md
+
+# Import sample data files
+scripts/import/sample_data/*.json

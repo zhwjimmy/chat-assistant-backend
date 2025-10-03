@@ -17,8 +17,10 @@ GOMOD=$(GOCMD) mod
 # Build parameters
 BUILD_DIR=./bin
 MAIN_PATH=./cmd/server
+IMPORTER_BINARY=chat-assistant-importer
+IMPORTER_PATH=./cmd/importer
 
-.PHONY: all build clean test deps run docker-build docker-run gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean
+.PHONY: all build clean test deps run docker-build docker-run gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean build-importer run-importer test-import
 
 # Default target
 all: deps build
@@ -29,6 +31,13 @@ build:
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) -v $(MAIN_PATH)
 	@echo "Build completed: $(BUILD_DIR)/$(BINARY_NAME)"
+
+# Build importer tool
+build-importer:
+	@echo "Building $(IMPORTER_BINARY)..."
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) -o $(BUILD_DIR)/$(IMPORTER_BINARY) -v $(IMPORTER_PATH)
+	@echo "Importer build completed: $(BUILD_DIR)/$(IMPORTER_BINARY)"
 
 # Clean build artifacts
 clean:
@@ -48,6 +57,16 @@ test-coverage:
 	$(GOTEST) -v -coverprofile=coverage.out ./...
 	$(GOCMD) tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
+
+# Run importer tool
+run-importer:
+	@echo "Running importer tool..."
+	$(GOCMD) run $(IMPORTER_PATH) $(ARGS)
+
+# Test import functionality
+test-import:
+	@echo "Running import tests..."
+	$(GOTEST) -v ./internal/importer/...
 
 # Download dependencies
 deps:
@@ -185,9 +204,11 @@ help:
 	@echo ""
 	@echo "Build and Run:"
 	@echo "  build          - Build the application"
+	@echo "  build-importer - Build the importer tool"
 	@echo "  clean          - Clean build artifacts"
 	@echo "  run            - Run the application locally"
 	@echo "  run-dev        - Run with hot reload (requires air)"
+	@echo "  run-importer   - Run the importer tool"
 	@echo ""
 	@echo "Development Environment:"
 	@echo "  dev-setup      - Setup development environment (start DB)"
@@ -200,6 +221,7 @@ help:
 	@echo "Testing:"
 	@echo "  test           - Run tests"
 	@echo "  test-coverage  - Run tests with coverage"
+	@echo "  test-import    - Run import functionality tests"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  lint           - Run linter"

@@ -62,6 +62,13 @@ const (
 
 	// Message errors
 	ErrCodeMessageNotFound = "MESSAGE_NOT_FOUND"
+
+	// Import errors
+	ErrCodeUnsupportedPlatform = "UNSUPPORTED_PLATFORM"
+	ErrCodeInvalidFileFormat   = "INVALID_FILE_FORMAT"
+	ErrCodeImportFailed        = "IMPORT_FAILED"
+	ErrCodeValidationFailed    = "VALIDATION_FAILED"
+	ErrCodeImportJobNotFound   = "IMPORT_JOB_NOT_FOUND"
 )
 
 // Predefined errors
@@ -83,6 +90,13 @@ var (
 
 	ErrConversationNotFound = NewAppError(ErrCodeConversationNotFound, "Conversation not found", http.StatusNotFound)
 	ErrMessageNotFound      = NewAppError(ErrCodeMessageNotFound, "Message not found", http.StatusNotFound)
+
+	// Import errors
+	ErrUnsupportedPlatform = NewAppError(ErrCodeUnsupportedPlatform, "Unsupported import platform", http.StatusBadRequest)
+	ErrInvalidFileFormat   = NewAppError(ErrCodeInvalidFileFormat, "Invalid file format", http.StatusBadRequest)
+	ErrImportFailed        = NewAppError(ErrCodeImportFailed, "Import process failed", http.StatusInternalServerError)
+	ErrValidationFailed    = NewAppError(ErrCodeValidationFailed, "Data validation failed", http.StatusBadRequest)
+	ErrImportJobNotFound   = NewAppError(ErrCodeImportJobNotFound, "Import job not found", http.StatusNotFound)
 )
 
 // Response represents a standard API response
