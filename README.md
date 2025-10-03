@@ -12,8 +12,7 @@ A Golang backend service for the Chat Assistant application, built with Gin, GOR
 - **Internationalization**: Multi-language support (English/Chinese)
 - **Graceful Shutdown**: Proper signal handling and graceful shutdown
 - **Request ID**: Request tracing with unique IDs
-- **Docker Support**: Multi-stage Docker build with docker-compose
-- **Database Migrations**: Goose migration support
+- **Docker Support**: Multi-stage Docker build with PostgreSQL service
 - **Dependency Injection**: Google Wire for compile-time DI
 - **API Documentation**: OpenAPI 3.0 specification
 - **Code Quality**: golangci-lint integration
@@ -23,7 +22,7 @@ A Golang backend service for the Chat Assistant application, built with Gin, GOR
 
 - Go 1.23.1 (or latest stable version)
 - PostgreSQL 15+
-- Docker & Docker Compose (optional)
+- Docker & Docker Compose (for PostgreSQL service)
 
 ### Go Version Management
 
@@ -70,11 +69,6 @@ Start PostgreSQL with Docker:
 make docker-compose-up
 ```
 
-Or run migrations manually:
-
-```bash
-make migrate-up
-```
 
 ### 4. Run the Application
 
@@ -104,7 +98,6 @@ chat-assistant-backend/
 │   ├── services/         # Business logic
 │   ├── repositories/     # Data access layer
 │   ├── models/           # Data models
-│   ├── migrations/       # Database migrations
 │   ├── i18n/             # Internationalization
 │   ├── docs/             # API documentation
 │   ├── logger/           # Logging setup
@@ -135,9 +128,6 @@ make lint               # Run linter
 make fmt                # Format code
 make vet                # Vet code
 
-# Database
-make migrate-up         # Run migrations up
-make migrate-down       # Run migrations down
 
 # Documentation
 make gen-swagger        # Generate Swagger docs
@@ -146,8 +136,8 @@ make gen-wire           # Generate Wire DI
 # Docker
 make docker-build       # Build Docker image
 make docker-run         # Run Docker container
-make docker-compose-up  # Start with docker-compose
-make docker-compose-down # Stop docker-compose
+make docker-compose-up  # Start PostgreSQL with docker-compose
+make docker-compose-down # Stop PostgreSQL
 
 # Development tools
 make install-tools      # Install development tools
@@ -168,8 +158,6 @@ Or install manually:
 # Hot reload
 go install github.com/cosmtrek/air@latest
 
-# Database migrations
-go install github.com/pressly/goose/v3/cmd/goose@latest
 
 # API documentation
 go install github.com/swaggo/swag/cmd/swag@latest
@@ -253,38 +241,19 @@ make docker-build
 make docker-run
 ```
 
-### Docker Compose
+### Docker Compose (PostgreSQL Service)
 
 ```bash
-# Start all services
+# Start PostgreSQL service
 make docker-compose-up
 
-# Stop all services
+# Stop PostgreSQL service
 make docker-compose-down
 ```
 
 The docker-compose setup includes:
-- PostgreSQL database
-- Chat Assistant Backend
-- Optional migration service
+- PostgreSQL database for local development
 
-## Database Migrations
-
-### Using Goose
-
-```bash
-# Run migrations up
-make migrate-up
-
-# Run migrations down
-make migrate-down
-```
-
-### Migration Files
-
-Migration files are located in `internal/migrations/` and follow the naming convention:
-- `YYYYMMDD_HHMMSS_description.up.sql`
-- `YYYYMMDD_HHMMSS_description.down.sql`
 
 ## Internationalization
 
@@ -346,10 +315,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
    - Change `SERVER_PORT` in configuration
    - Kill existing processes on port 8080
 
-3. **Migration Errors**
+3. **Database Errors**
    - Check database connection
-   - Verify migration files syntax
    - Ensure database user has proper permissions
+   - Verify database schema is properly initialized
 
 4. **Build Failures**
    - Ensure Go version is 1.23.1 or compatible

@@ -18,7 +18,7 @@ GOMOD=$(GOCMD) mod
 BUILD_DIR=./bin
 MAIN_PATH=./cmd/server
 
-.PHONY: all build clean test deps run docker-build docker-run migrate-up migrate-down gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean
+.PHONY: all build clean test deps run docker-build docker-run gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean
 
 # Default target
 all: deps build
@@ -81,14 +81,14 @@ docker-run:
 	@echo "Running Docker container..."
 	docker run -p 8080:8080 --env-file .env $(DOCKER_IMAGE):$(DOCKER_TAG)
 
-# Docker compose up
+# Docker compose up (PostgreSQL only)
 docker-compose-up:
-	@echo "Starting services with docker-compose..."
+	@echo "Starting PostgreSQL with docker-compose..."
 	docker-compose up -d
 
 # Docker compose down
 docker-compose-down:
-	@echo "Stopping services with docker-compose..."
+	@echo "Stopping PostgreSQL..."
 	docker-compose down
 
 # Development database management
@@ -120,23 +120,6 @@ dev-setup: dev-db-up
 dev-clean: dev-db-down
 	@echo "Development environment cleaned up"
 
-# Database migration up
-migrate-up:
-	@echo "Running database migrations up..."
-	@if command -v goose > /dev/null; then \
-		goose -dir internal/migrations postgres "host=localhost port=5432 user=postgres password=postgres dbname=chat_assistant sslmode=disable" up; \
-	else \
-		echo "Goose not installed. Install with: go install github.com/pressly/goose/v3/cmd/goose@latest"; \
-	fi
-
-# Database migration down
-migrate-down:
-	@echo "Running database migrations down..."
-	@if command -v goose > /dev/null; then \
-		goose -dir internal/migrations postgres "host=localhost port=5432 user=postgres password=postgres dbname=chat_assistant sslmode=disable" down; \
-	else \
-		echo "Goose not installed. Install with: go install github.com/pressly/goose/v3/cmd/goose@latest"; \
-	fi
 
 # Generate Swagger documentation
 gen-swagger:
@@ -181,7 +164,6 @@ vet:
 install-tools:
 	@echo "Installing development tools..."
 	$(GOGET) github.com/cosmtrek/air@latest
-	$(GOGET) github.com/pressly/goose/v3/cmd/goose@latest
 	$(GOGET) github.com/swaggo/swag/cmd/swag@latest
 	$(GOGET) github.com/google/wire/cmd/wire@latest
 	$(GOGET) github.com/golangci/golangci-lint/cmd/golangci-lint@latest
@@ -225,14 +207,12 @@ help:
 	@echo "  vet            - Vet code"
 	@echo ""
 	@echo "Database:"
-	@echo "  migrate-up     - Run database migrations up"
-	@echo "  migrate-down   - Run database migrations down"
 	@echo ""
 	@echo "Docker:"
 	@echo "  docker-build   - Build Docker image"
 	@echo "  docker-run     - Run Docker container"
-	@echo "  docker-compose-up   - Start all services with docker-compose"
-	@echo "  docker-compose-down - Stop all services with docker-compose"
+	@echo "  docker-compose-up   - Start PostgreSQL with docker-compose"
+	@echo "  docker-compose-down - Stop PostgreSQL"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  gen-swagger    - Generate Swagger documentation"

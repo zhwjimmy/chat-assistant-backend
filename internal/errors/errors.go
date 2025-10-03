@@ -50,7 +50,6 @@ const (
 	// Database errors
 	ErrCodeDBConnection = "DB_CONNECTION_ERROR"
 	ErrCodeDBQuery      = "DB_QUERY_ERROR"
-	ErrCodeDBMigration  = "DB_MIGRATION_ERROR"
 
 	// Configuration errors
 	ErrCodeConfigLoad = "CONFIG_LOAD_ERROR"
@@ -68,7 +67,6 @@ var (
 
 	ErrDBConnection = NewAppError(ErrCodeDBConnection, "Database connection error", http.StatusInternalServerError)
 	ErrDBQuery      = NewAppError(ErrCodeDBQuery, "Database query error", http.StatusInternalServerError)
-	ErrDBMigration  = NewAppError(ErrCodeDBMigration, "Database migration error", http.StatusInternalServerError)
 
 	ErrConfigLoad = NewAppError(ErrCodeConfigLoad, "Configuration load error", http.StatusInternalServerError)
 )

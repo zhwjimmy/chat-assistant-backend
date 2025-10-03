@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"time"
 
 	"go.uber.org/zap"
 

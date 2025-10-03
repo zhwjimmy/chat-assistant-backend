@@ -9,7 +9,6 @@
     "validation": "Validation error",
     "db_connection": "Database connection error",
     "db_query": "Database query error",
-    "db_migration": "Database migration error",
     "config_load": "Configuration load error"
   },
   "messages": {

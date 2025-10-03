@@ -45,12 +45,12 @@ temp/
 /tmp/
 /temp/
 
-# Environment files
-.env
+# Environment files (ignore actual .env files but allow .env.sample)
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+# Note: .env is ignored by .gitignore, .env.sample is allowed for indexing
 
 # IDE and editor files
 .vscode/
@@ -80,7 +80,7 @@ coverage.html
 *.pprof
 
 # Air live reload
-.air.toml
+# .air.toml  # Commented out to allow Cursor indexing
 
 # Go modules
 go.sum

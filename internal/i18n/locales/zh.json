@@ -9,7 +9,6 @@
     "validation": "验证错误",
     "db_connection": "数据库连接错误",
     "db_query": "数据库查询错误",
-    "db_migration": "数据库迁移错误",
     "config_load": "配置加载错误"
   },
   "messages": {
