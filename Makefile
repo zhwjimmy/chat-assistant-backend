@@ -19,8 +19,13 @@ BUILD_DIR=./bin
 MAIN_PATH=./cmd/server
 IMPORTER_BINARY=chat-assistant-importer
 IMPORTER_PATH=./cmd/importer
+MIGRATE_BINARY=chat-assistant-migrate
+MIGRATE_PATH=./cmd/migrate
 
-.PHONY: all build clean test deps run docker-build docker-run gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean build-importer run-importer test-import
+# Migration parameters
+MIGRATIONS_DIR=./internal/migrations
+
+.PHONY: all build clean test deps run docker-build docker-run gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean build-importer run-importer test-import build-migrate migrate-up migrate-down migrate-reset migrate-status migrate-version migrate-create migrate-fix migrate-validate
 
 # Default target
 all: deps build
@@ -38,6 +43,13 @@ build-importer:
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) -o $(BUILD_DIR)/$(IMPORTER_BINARY) -v $(IMPORTER_PATH)
 	@echo "Importer build completed: $(BUILD_DIR)/$(IMPORTER_BINARY)"
+
+# Build migration tool
+build-migrate:
+	@echo "Building $(MIGRATE_BINARY)..."
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) -o $(BUILD_DIR)/$(MIGRATE_BINARY) -v $(MIGRATE_PATH)
+	@echo "Migration tool build completed: $(BUILD_DIR)/$(MIGRATE_BINARY)"
 
 # Clean build artifacts
 clean:
@@ -73,6 +85,7 @@ deps:
 	@echo "Downloading dependencies..."
 	$(GOMOD) download
 	$(GOMOD) tidy
+
 
 # Run the application locally
 run:
@@ -110,6 +123,27 @@ docker-compose-down:
 	@echo "Stopping PostgreSQL..."
 	docker-compose down
 
+# Docker compose with migration
+docker-compose-up-migrate:
+	@echo "Starting PostgreSQL and running migrations..."
+	docker-compose --profile migrate up -d
+
+# Build migration Docker image
+docker-build-migrate:
+	@echo "Building migration Docker image..."
+	docker build -f Dockerfile.migrate -t $(DOCKER_IMAGE)-migrate:$(DOCKER_TAG) .
+	@echo "Migration Docker image built: $(DOCKER_IMAGE)-migrate:$(DOCKER_TAG)"
+
+# Run migration in Docker
+docker-migrate-up:
+	@echo "Running migrations in Docker..."
+	docker-compose --profile migrate run --rm migrate migrate -command up
+
+# Run migration rollback in Docker
+docker-migrate-down:
+	@echo "Rolling back migrations in Docker..."
+	docker-compose --profile migrate run --rm migrate migrate -command down
+
 # Development database management
 dev-db-up:
 	@echo "Starting PostgreSQL for local development..."
@@ -138,6 +172,75 @@ dev-setup: dev-db-up
 
 dev-clean: dev-db-down
 	@echo "Development environment cleaned up"
+
+# Database Migration Commands
+migrate-up:
+	@echo "Running database migrations..."
+	@if [ -f $(BUILD_DIR)/$(MIGRATE_BINARY) ]; then \
+		$(BUILD_DIR)/$(MIGRATE_BINARY) -command up; \
+	else \
+		$(GOCMD) run $(MIGRATE_PATH) -command up; \
+	fi
+
+migrate-down:
+	@echo "Rolling back last migration..."
+	@if [ -f $(BUILD_DIR)/$(MIGRATE_BINARY) ]; then \
+		$(BUILD_DIR)/$(MIGRATE_BINARY) -command down; \
+	else \
+		$(GOCMD) run $(MIGRATE_PATH) -command down; \
+	fi
+
+migrate-reset:
+	@echo "Resetting all migrations..."
+	@if [ -f $(BUILD_DIR)/$(MIGRATE_BINARY) ]; then \
+		$(BUILD_DIR)/$(MIGRATE_BINARY) -command reset; \
+	else \
+		$(GOCMD) run $(MIGRATE_PATH) -command reset; \
+	fi
+
+migrate-status:
+	@echo "Checking migration status..."
+	@if [ -f $(BUILD_DIR)/$(MIGRATE_BINARY) ]; then \
+		$(BUILD_DIR)/$(MIGRATE_BINARY) -command status; \
+	else \
+		$(GOCMD) run $(MIGRATE_PATH) -command status; \
+	fi
+
+migrate-version:
+	@echo "Getting migration version..."
+	@if [ -f $(BUILD_DIR)/$(MIGRATE_BINARY) ]; then \
+		$(BUILD_DIR)/$(MIGRATE_BINARY) -command version; \
+	else \
+		$(GOCMD) run $(MIGRATE_PATH) -command version; \
+	fi
+
+migrate-create:
+	@echo "Creating new migration..."
+	@if [ -z "$(NAME)" ]; then \
+		echo "Usage: make migrate-create NAME=migration_name"; \
+		exit 1; \
+	fi
+	@if [ -f $(BUILD_DIR)/$(MIGRATE_BINARY) ]; then \
+		$(BUILD_DIR)/$(MIGRATE_BINARY) -command create -name $(NAME); \
+	else \
+		$(GOCMD) run $(MIGRATE_PATH) -command create -name $(NAME); \
+	fi
+
+migrate-fix:
+	@echo "Fixing migration versioning..."
+	@if [ -f $(BUILD_DIR)/$(MIGRATE_BINARY) ]; then \
+		$(BUILD_DIR)/$(MIGRATE_BINARY) -command fix; \
+	else \
+		$(GOCMD) run $(MIGRATE_PATH) -command fix; \
+	fi
+
+migrate-validate:
+	@echo "Validating migration files..."
+	@if [ -f $(BUILD_DIR)/$(MIGRATE_BINARY) ]; then \
+		$(BUILD_DIR)/$(MIGRATE_BINARY) -command validate; \
+	else \
+		$(GOCMD) run $(MIGRATE_PATH) -command validate; \
+	fi
 
 
 # Generate Swagger documentation
@@ -229,12 +332,24 @@ help:
 	@echo "  vet            - Vet code"
 	@echo ""
 	@echo "Database:"
+	@echo "  migrate-up      - Run all pending migrations"
+	@echo "  migrate-down    - Roll back the last migration"
+	@echo "  migrate-reset   - Roll back all migrations"
+	@echo "  migrate-status  - Show migration status"
+	@echo "  migrate-version - Show current migration version"
+	@echo "  migrate-create  - Create new migration (use NAME=migration_name)"
+	@echo "  migrate-fix     - Fix migration versioning issues"
+	@echo "  migrate-validate - Validate migration files"
 	@echo ""
 	@echo "Docker:"
 	@echo "  docker-build   - Build Docker image"
 	@echo "  docker-run     - Run Docker container"
 	@echo "  docker-compose-up   - Start PostgreSQL with docker-compose"
 	@echo "  docker-compose-down - Stop PostgreSQL"
+	@echo "  docker-compose-up-migrate - Start PostgreSQL and run migrations"
+	@echo "  docker-build-migrate - Build migration Docker image"
+	@echo "  docker-migrate-up - Run migrations in Docker"
+	@echo "  docker-migrate-down - Roll back migrations in Docker"
 	@echo ""
 	@echo "Documentation:"
 	@echo "  gen-swagger    - Generate Swagger documentation"
@@ -242,6 +357,7 @@ help:
 	@echo ""
 	@echo "Setup:"
 	@echo "  deps           - Download dependencies"
+	@echo "  fix-deps       - Fix dependency issues (clean cache and reinstall)"
 	@echo "  install-tools  - Install development tools"
 	@echo "  setup          - Setup development environment"
 	@echo "  check-go-version - Check Go version"

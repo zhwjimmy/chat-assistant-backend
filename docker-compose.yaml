@@ -18,6 +18,28 @@ services:
       timeout: 5s
       retries: 5
 
+  # Database Migration Service
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile.migrate
+    container_name: chat-assistant-migrate
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: postgres
+      DATABASE_NAME: chat_assistant
+      DATABASE_SSLMODE: disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: [ "migrate", "-command", "up" ]
+    volumes:
+      - ./internal/migrations:/app/migrations
+    profiles:
+      - migrate
+
 volumes:
   postgres_data:
     driver: local

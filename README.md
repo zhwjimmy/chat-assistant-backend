@@ -13,6 +13,7 @@ A Golang backend service for the Chat Assistant application, built with Gin, GOR
 - **Graceful Shutdown**: Proper signal handling and graceful shutdown
 - **Request ID**: Request tracing with unique IDs
 - **Docker Support**: Multi-stage Docker build with PostgreSQL service
+- **Database Migrations**: Goose-based database migration system
 - **Dependency Injection**: Google Wire for compile-time DI
 - **API Documentation**: OpenAPI 3.0 specification
 - **Code Quality**: golangci-lint integration
@@ -89,7 +90,9 @@ The API will be available at `http://localhost:8080`
 ```
 chat-assistant-backend/
 ├── cmd/
-│   └── server/           # Application entry point
+│   ├── server/           # Application entry point
+│   ├── importer/         # Data import tool
+│   └── migrate/          # Database migration tool
 ├── internal/
 │   ├── app/              # Application bootstrap
 │   ├── config/           # Configuration management
@@ -98,15 +101,20 @@ chat-assistant-backend/
 │   ├── services/         # Business logic
 │   ├── repositories/     # Data access layer
 │   ├── models/           # Data models
+│   ├── migrations/       # Database migration files
+│   ├── importer/         # Data import functionality
 │   ├── i18n/             # Internationalization
 │   ├── docs/             # API documentation
 │   ├── logger/           # Logging setup
 │   └── errors/           # Error handling
 ├── api/                  # OpenAPI specifications
 ├── config/               # Configuration files
+├── scripts/              # Database scripts and sample data
 ├── test/                 # Test files
 ├── Dockerfile
+├── Dockerfile.migrate    # Migration service Dockerfile
 ├── docker-compose.yaml
+├── goose.yaml           # Goose migration configuration
 ├── Makefile
 └── README.md
 ```
@@ -119,6 +127,16 @@ make build              # Build the application
 make run                # Run locally
 make run-dev            # Run with hot reload
 
+# Database migrations
+make migrate-up         # Run all pending migrations
+make migrate-down       # Roll back the last migration
+make migrate-reset      # Roll back all migrations
+make migrate-status     # Show migration status
+make migrate-version    # Show current migration version
+make migrate-create     # Create new migration (use NAME=migration_name)
+make migrate-fix        # Fix migration versioning issues
+make migrate-validate   # Validate migration files
+
 # Testing
 make test               # Run tests
 make test-coverage      # Run tests with coverage
@@ -127,7 +145,6 @@ make test-coverage      # Run tests with coverage
 make lint               # Run linter
 make fmt                # Format code
 make vet                # Vet code
-
 
 # Documentation
 make gen-swagger        # Generate Swagger docs
@@ -138,6 +155,10 @@ make docker-build       # Build Docker image
 make docker-run         # Run Docker container
 make docker-compose-up  # Start PostgreSQL with docker-compose
 make docker-compose-down # Stop PostgreSQL
+make docker-compose-up-migrate # Start PostgreSQL and run migrations
+make docker-build-migrate # Build migration Docker image
+make docker-migrate-up  # Run migrations in Docker
+make docker-migrate-down # Roll back migrations in Docker
 
 # Development tools
 make install-tools      # Install development tools
@@ -167,6 +188,9 @@ go install github.com/google/wire/cmd/wire@latest
 
 # Linting
 go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# Database migrations (optional - migrations can be run via make commands)
+go install github.com/pressly/goose/v3/cmd/goose@latest
 ```
 
 ## Configuration
@@ -253,7 +277,101 @@ make docker-compose-down
 
 The docker-compose setup includes:
 - PostgreSQL database for local development
+- Optional migration service for automatic database setup
 
+## Database Migrations
+
+The application uses [Goose](https://github.com/pressly/goose) for database migrations. Migrations are automatically run when the application starts, but can also be managed manually.
+
+### Migration Files
+
+Migration files are located in `internal/migrations/` and follow the naming convention:
+- `{version}_{description}.up.sql` - Forward migration
+- `{version}_{description}.down.sql` - Rollback migration
+
+### Automatic Migrations
+
+Migrations run automatically when the application starts. This ensures the database schema is always up-to-date.
+
+### Manual Migration Management
+
+```bash
+# Run all pending migrations
+make migrate-up
+
+# Roll back the last migration
+make migrate-down
+
+# Reset all migrations (WARNING: This will drop all data)
+make migrate-reset
+
+# Check migration status
+make migrate-status
+
+# Get current migration version
+make migrate-version
+
+# Create a new migration
+make migrate-create NAME=add_new_table
+
+# Fix migration versioning issues
+make migrate-fix
+
+# Validate migration files
+make migrate-validate
+```
+
+### Docker-based Migrations
+
+```bash
+# Start PostgreSQL and run migrations automatically
+make docker-compose-up-migrate
+
+# Run migrations in Docker container
+make docker-migrate-up
+
+# Roll back migrations in Docker container
+make docker-migrate-down
+```
+
+### Migration Configuration
+
+Migration settings can be configured in `goose.yaml`:
+
+```yaml
+database:
+  driver: postgres
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: chat_assistant
+  sslmode: disable
+
+migrations:
+  dir: internal/migrations
+  table: goose_db_version
+  allow_missing: false
+  allow_out_of_order: false
+```
+
+### Creating New Migrations
+
+1. Create a new migration:
+   ```bash
+   make migrate-create NAME=add_user_preferences
+   ```
+
+2. Edit the generated files in `internal/migrations/`:
+   - `{timestamp}_add_user_preferences.up.sql` - Add your schema changes
+   - `{timestamp}_add_user_preferences.down.sql` - Add rollback changes
+
+3. Test the migration:
+   ```bash
+   make migrate-up
+   make migrate-down
+   make migrate-up
+   ```
 
 ## Internationalization
 
@@ -319,6 +437,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
    - Check database connection
    - Ensure database user has proper permissions
    - Verify database schema is properly initialized
+   - Run `make migrate-status` to check migration status
+   - Run `make migrate-up` to apply pending migrations
 
 4. **Build Failures**
    - Ensure Go version is 1.23.1 or compatible
@@ -333,6 +453,13 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Check the API documentation
 
 ## Changelog
+
+### v1.1.0
+- Added Goose-based database migration system
+- Automatic migration execution on application startup
+- Migration management tools and commands
+- Docker support for migrations
+- Enhanced documentation for database management
 
 ### v1.0.0
 - Initial release

@@ -6,6 +6,7 @@ package internal
 import (
 	"chat-assistant-backend/internal/config"
 	"chat-assistant-backend/internal/handlers"
+	"chat-assistant-backend/internal/migrations"
 	"chat-assistant-backend/internal/repositories"
 	"chat-assistant-backend/internal/server"
 	"chat-assistant-backend/internal/services"
@@ -26,6 +27,20 @@ func NewDatabase(cfg *config.Config) (*gorm.DB, error) {
 	return db, nil
 }
 
+// RunMigrations runs database migrations and returns the database connection
+func RunMigrations(cfg *config.Config, db *gorm.DB) (*gorm.DB, error) {
+	migrator, err := migrations.NewMigrator(db, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := migrator.Up(); err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
 // InitializeApp initializes the application with all dependencies
 func InitializeApp() (*server.Server, error) {
 	wire.Build(
@@ -35,7 +50,10 @@ func InitializeApp() (*server.Server, error) {
 		// Database
 		NewDatabase,
 
-		// Repositories
+		// Migrations (runs automatically after database connection)
+		RunMigrations,
+
+		// Repositories (use migrated database)
 		repositories.NewUserRepository,
 		repositories.NewConversationRepository,
 		repositories.NewMessageRepository,

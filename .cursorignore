@@ -83,7 +83,7 @@ coverage.html
 # .air.toml  # Commented out to allow Cursor indexing
 
 # Go modules
-go.sum
+# go.sum  # Commented out to allow Cursor indexing
 
 # Local development
 local/

@@ -1,0 +1,43 @@
+# Goose configuration file
+# This file configures Goose database migration tool
+
+# Database connection settings
+# These can be overridden by environment variables or command line flags
+database:
+  driver: postgres
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: chat_assistant
+  sslmode: disable
+
+# Migration settings
+migrations:
+  # Directory containing migration files
+  dir: internal/migrations
+  
+  # Table name to store migration history
+  table: goose_db_version
+  
+  # Whether to allow missing migrations
+  allow_missing: false
+  
+  # Whether to allow out-of-order migrations
+  allow_out_of_order: false
+
+# Logging settings
+logging:
+  # Log level: debug, info, warn, error
+  level: info
+  
+  # Whether to log SQL statements
+  verbose: false
+
+# Additional settings
+settings:
+  # Whether to create the database if it doesn't exist
+  create_db: false
+  
+  # Whether to drop the database before creating (use with caution!)
+  drop_db: false
