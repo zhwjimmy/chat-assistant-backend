@@ -85,7 +85,7 @@ temp/
 # wire_gen.go
 
 # Swagger generated files
-/docs/
+# /docs/  # Commented out to allow project documentation
 /swagger/
 
 # Migration files (keep the migration files, but ignore any generated migration state)
