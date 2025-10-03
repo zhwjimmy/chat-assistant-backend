@@ -51,6 +51,7 @@ func (t *Transformer) transformConversation(stdConv *types.StandardConversation,
 		Title:    stdConv.Title,
 		Provider: platform,
 		Model:    stdConv.Model,
+		SourceID: stdConv.ID, // 使用原始数据中的ID作为SourceID
 	}
 
 	// 设置时间
