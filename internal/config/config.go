@@ -42,10 +42,10 @@ type DatabaseConfig struct {
 
 // CORSConfig holds CORS configuration
 type CORSConfig struct {
-	AllowedOrigins []string `mapstructure:"allowed_origins"`
-	AllowedMethods []string `mapstructure:"allowed_methods"`
-	AllowedHeaders []string `mapstructure:"allowed_headers"`
-	AllowCredentials bool   `mapstructure:"allow_credentials"`
+	AllowedOrigins   []string `mapstructure:"allowed_origins"`
+	AllowedMethods   []string `mapstructure:"allowed_methods"`
+	AllowedHeaders   []string `mapstructure:"allowed_headers"`
+	AllowCredentials bool     `mapstructure:"allow_credentials"`
 }
 
 // LoggingConfig holds logging configuration

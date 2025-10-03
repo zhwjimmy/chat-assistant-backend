@@ -26,6 +26,8 @@ go.work
 # Application binary
 /{{PROJECT_NAME}}
 /chat-assistant-backend
+server
+main
 
 # Environment variables
 .env

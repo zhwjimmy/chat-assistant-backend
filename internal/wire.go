@@ -18,7 +18,12 @@ import (
 // NewDatabase creates a new database connection
 func NewDatabase(cfg *config.Config) (*gorm.DB, error) {
 	dsn := cfg.Database.GetDSN()
-	return gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
 
 // InitializeApp initializes the application with all dependencies

@@ -9,7 +9,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/swaggo/files"
+	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 	"go.uber.org/zap"
 
@@ -191,7 +191,7 @@ func NewWithDependencies(cfg *config.Config, db *gorm.DB, userHandler *handlers.
 	router.GET("/health", healthCheckHandler)
 
 	// Add Swagger documentation endpoint
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(files.Handler))
+	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Add API routes
 	api := router.Group("/api/v1")
