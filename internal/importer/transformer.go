@@ -75,7 +75,8 @@ func (t *Transformer) transformMessage(stdMsg *types.StandardMessage, conversati
 	msg := &models.Message{
 		ConversationID: conversationID,
 		Role:           stdMsg.Role,
-		Content:        stdMsg.Content,
+		SourceID:       stdMsg.ID,
+		SourceContent:  stdMsg.Content,
 	}
 
 	// 设置时间

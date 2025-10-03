@@ -31,3 +31,11 @@ COMMENT ON COLUMN conversations.provider IS 'AI提供商 (openai, gemini, local�
 COMMENT ON COLUMN conversations.model IS 'AI模型 (gpt-4, gemini-pro, llama-3等)';
 COMMENT ON COLUMN conversations.source_id IS '原始数据中的ID，用于关联导入内容';
 -- +goose StatementEnd
+-- +goose Down
+-- +goose StatementBegin
+-- Drop conversations table and related objects
+DROP TRIGGER IF EXISTS update_conversations_updated_at ON conversations;
+-- Drop foreign key constraint first
+ALTER TABLE conversations DROP CONSTRAINT IF EXISTS fk_conversations_user_id;
+DROP TABLE IF EXISTS conversations CASCADE;
+-- +goose StatementEnd

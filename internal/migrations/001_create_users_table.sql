@@ -27,3 +27,12 @@ COMMENT ON TABLE users IS '用户表';
 COMMENT ON COLUMN users.username IS '用户名，唯一';
 COMMENT ON COLUMN users.avatar IS '用户头像URL';
 -- +goose StatementEnd
+-- +goose Down
+-- +goose StatementBegin
+-- Drop users table and related objects
+DROP TRIGGER IF EXISTS update_users_updated_at ON users;
+DROP TABLE IF EXISTS users CASCADE;
+-- Drop the trigger function (only if no other tables are using it)
+-- Note: This function is used by other tables, so we don't drop it here
+-- DROP FUNCTION IF EXISTS update_updated_at_column();
+-- +goose StatementEnd

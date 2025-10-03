@@ -31,3 +31,11 @@ COMMENT ON COLUMN messages.content IS '消息内容';
 COMMENT ON COLUMN messages.source_id IS '原始数据中的ID，用于关联导入内容';
 COMMENT ON COLUMN messages.source_content IS '原始数据中的内容，用于对比和调试';
 -- +goose StatementEnd
+-- +goose Down
+-- +goose StatementBegin
+-- Drop messages table and related objects
+DROP TRIGGER IF EXISTS update_messages_updated_at ON messages;
+-- Drop foreign key constraint first
+ALTER TABLE messages DROP CONSTRAINT IF EXISTS fk_messages_conversation_id;
+DROP TABLE IF EXISTS messages CASCADE;
+-- +goose StatementEnd
