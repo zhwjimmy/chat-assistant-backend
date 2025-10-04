@@ -12,6 +12,7 @@ import (
 // SearchRepository interface abstracts search functionality
 type SearchRepository interface {
 	SearchConversationsWithMessages(query string, userID *uuid.UUID, page, limit int) ([]*models.Conversation, int64, error)
+	SearchConversationsWithMatchedMessages(query string, userID *uuid.UUID, page, limit int) ([]*models.ConversationDocument, map[uuid.UUID][]*models.MessageDocument, map[uuid.UUID][]string, int64, error)
 }
 
 // SearchService handles search business logic
@@ -42,4 +43,22 @@ func (s *SearchService) Search(query string, userID *uuid.UUID, page, limit int)
 
 	// Convert to response format using existing ConversationResponse
 	return response.NewConversationListResponse(conversations), total, nil
+}
+
+// SearchWithMatchedMessages performs a search and returns conversations with matched messages
+func (s *SearchService) SearchWithMatchedMessages(query string, userID *uuid.UUID, page, limit int) (*response.SearchResponse, int64, error) {
+	// Validate and clean query
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return &response.SearchResponse{Query: query, Conversations: []response.SearchConversationResponse{}}, 0, nil
+	}
+
+	// Search conversations with matched messages and field information
+	conversationDocs, matchedMessagesMap, matchedFieldsMap, total, err := s.searchRepo.SearchConversationsWithMatchedMessages(query, userID, page, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// Convert to new search response format
+	return response.NewSearchResponse(query, conversationDocs, matchedMessagesMap, matchedFieldsMap), total, nil
 }

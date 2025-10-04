@@ -24,7 +24,7 @@ func NewSearchHandler(searchService *services.SearchService) *SearchHandler {
 
 // Search handles GET /api/v1/search
 // @Summary Search Conversations
-// @Description Search conversations by title or message content, returns conversation list
+// @Description Search conversations by title or message content, returns conversation list with matched messages
 // @Tags Search
 // @Accept json
 // @Produce json
@@ -32,7 +32,7 @@ func NewSearchHandler(searchService *services.SearchService) *SearchHandler {
 // @Param user_id query string false "User ID" Format(uuid)
 // @Param page query int false "Page number" default(1)
 // @Param limit query int false "Items per page" default(10)
-// @Success 200 {object} response.PaginatedResponse{data=response.ConversationListResponse} "Search results"
+// @Success 200 {object} response.PaginatedResponse{data=response.SearchResponse} "Search results"
 // @Failure 400 {object} response.Response "Bad request"
 // @Failure 500 {object} response.Response "Internal server error"
 // @Router /api/v1/search [get]
@@ -71,8 +71,8 @@ func (h *SearchHandler) Search(c *gin.Context) {
 		}
 	}
 
-	// Perform search
-	conversationResponse, total, err := h.searchService.Search(query, userID, page, limit)
+	// Perform search with matched messages
+	searchResponse, total, err := h.searchService.SearchWithMatchedMessages(query, userID, page, limit)
 	if err != nil {
 		response.InternalServerError(c, "INTERNAL_ERROR", "Internal server error", "Failed to perform search")
 		return
@@ -89,5 +89,5 @@ func (h *SearchHandler) Search(c *gin.Context) {
 		TotalPages: totalPages,
 	}
 
-	response.SuccessPaginated(c, conversationResponse, pagination)
+	response.SuccessPaginated(c, searchResponse, pagination)
 }

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"chat-assistant-backend/internal/models"
 
@@ -42,6 +43,106 @@ func (r *ElasticsearchRepository) SearchConversationsWithMessages(query string, 
 	}
 
 	return conversations, total, nil
+}
+
+// SearchConversationsWithMatchedMessages searches conversations and returns matched messages
+func (r *ElasticsearchRepository) SearchConversationsWithMatchedMessages(query string, userID *uuid.UUID, page, limit int) ([]*models.ConversationDocument, map[uuid.UUID][]*models.MessageDocument, map[uuid.UUID][]string, int64, error) {
+	// 1. 在 ES 中搜索
+	esDocs, highlights, total, err := r.searchConversationDocumentsWithHighlights(query, userID, page, limit)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+
+	// 2. 提取匹配的消息和字段信息
+	matchedMessagesMap := make(map[uuid.UUID][]*models.MessageDocument)
+	matchedFieldsMap := make(map[uuid.UUID][]string)
+
+	for i, doc := range esDocs {
+		conversationID := doc.ID
+		var matchedFields []string
+
+		// 检查哪些字段有高亮（即匹配）
+		if _, exists := highlights[i]["title"]; exists {
+			matchedFields = append(matchedFields, "title")
+		}
+		if _, exists := highlights[i]["source_title"]; exists {
+			matchedFields = append(matchedFields, "source_title")
+		}
+		if _, exists := highlights[i]["messages.content"]; exists {
+			matchedFields = append(matchedFields, "messages.content")
+		}
+		if _, exists := highlights[i]["messages.source_content"]; exists {
+			matchedFields = append(matchedFields, "messages.source_content")
+		}
+
+		// 提取匹配的消息
+		_, hasContent := highlights[i]["messages.content"]
+		_, hasSourceContent := highlights[i]["messages.source_content"]
+		if hasContent || hasSourceContent {
+			// 如果 ES 返回了消息字段的高亮，说明有消息匹配
+			// 最多返回 3 条消息，优先选择包含匹配关键词的消息
+			const maxMessages = 3
+			matchedMessages := make([]*models.MessageDocument, 0, maxMessages)
+
+			// 首先尝试找到真正包含匹配关键词的消息
+			for _, msgDoc := range doc.Messages {
+				if len(matchedMessages) >= maxMessages {
+					break
+				}
+
+				// 检查消息是否包含匹配的关键词（通过高亮信息判断）
+				hasMatch := false
+				if contentHighlights, exists := highlights[i]["messages.content"]; exists {
+					if highlights, ok := contentHighlights.([]interface{}); ok {
+						for _, highlight := range highlights {
+							if highlightStr, ok := highlight.(string); ok {
+								cleanHighlight := removeHighlightTags(highlightStr)
+								if contains(msgDoc.Content, cleanHighlight) || contains(msgDoc.SourceContent, cleanHighlight) {
+									hasMatch = true
+									break
+								}
+							}
+						}
+					}
+				}
+
+				if hasMatch {
+					matchedMessages = append(matchedMessages, &msgDoc)
+				}
+			}
+
+			// 如果没有找到匹配的消息，或者匹配的消息少于3条，则补充前几条消息
+			if len(matchedMessages) < maxMessages {
+				for _, msgDoc := range doc.Messages {
+					if len(matchedMessages) >= maxMessages {
+						break
+					}
+
+					// 检查是否已经包含这条消息
+					alreadyIncluded := false
+					for _, existing := range matchedMessages {
+						if existing.ID == msgDoc.ID {
+							alreadyIncluded = true
+							break
+						}
+					}
+
+					if !alreadyIncluded {
+						matchedMessages = append(matchedMessages, &msgDoc)
+					}
+				}
+			}
+
+			matchedMessagesMap[conversationID] = matchedMessages
+			fmt.Printf("DEBUG: Added %d messages (max 3) for conversation %s\n", len(matchedMessages), conversationID)
+		}
+
+		// 总是设置 matched_fields，即使为空
+		matchedFieldsMap[conversationID] = matchedFields
+		fmt.Printf("DEBUG: Matched fields for conversation %s: %v\n", conversationID, matchedFields)
+	}
+
+	return esDocs, matchedMessagesMap, matchedFieldsMap, total, nil
 }
 
 // searchConversationDocuments 在 ES 中搜索 conversation 文档
@@ -234,6 +335,39 @@ func (r *ElasticsearchRepository) parseSearchResponse(response map[string]interf
 	return documents, total, nil
 }
 
+// searchConversationDocumentsWithHighlights 在 ES 中搜索 conversation 文档并返回高亮信息
+func (r *ElasticsearchRepository) searchConversationDocumentsWithHighlights(query string, userID *uuid.UUID, page, limit int) ([]*models.ConversationDocument, []map[string]interface{}, int64, error) {
+	ctx := context.Background()
+
+	// 构建 ES 查询
+	searchQuery := r.buildSearchQuery(query, userID, page, limit)
+
+	// 执行搜索
+	req := esapi.SearchRequest{
+		Index: []string{r.indexName},
+		Body:  bytes.NewReader(searchQuery),
+	}
+
+	res, err := req.Do(ctx, r.esClient)
+	if err != nil {
+		return nil, nil, 0, fmt.Errorf("failed to execute search: %w", err)
+	}
+	defer res.Body.Close()
+
+	if res.IsError() {
+		return nil, nil, 0, fmt.Errorf("search request failed with status: %s", res.Status())
+	}
+
+	// 解析响应
+	var searchResponse map[string]interface{}
+	if err := json.NewDecoder(res.Body).Decode(&searchResponse); err != nil {
+		return nil, nil, 0, fmt.Errorf("failed to decode search response: %w", err)
+	}
+
+	// 提取结果和高亮信息
+	return r.parseSearchResponseWithHighlights(searchResponse)
+}
+
 // parseDocument 解析单个文档
 func (r *ElasticsearchRepository) parseDocument(source map[string]interface{}, doc *models.ConversationDocument) error {
 	// 解析基础字段
@@ -343,4 +477,91 @@ func (r *ElasticsearchRepository) parseMessageDocument(source map[string]interfa
 	}
 
 	return nil
+}
+
+// parseSearchResponseWithHighlights 解析 ES 搜索响应并提取高亮信息
+func (r *ElasticsearchRepository) parseSearchResponseWithHighlights(response map[string]interface{}) ([]*models.ConversationDocument, []map[string]interface{}, int64, error) {
+	// 提取总数
+	hits, ok := response["hits"].(map[string]interface{})
+	if !ok {
+		return nil, nil, 0, fmt.Errorf("invalid search response format")
+	}
+
+	totalValue, ok := hits["total"]
+	if !ok {
+		return nil, nil, 0, fmt.Errorf("missing total in search response")
+	}
+
+	var total int64
+	if totalMap, ok := totalValue.(map[string]interface{}); ok {
+		if value, ok := totalMap["value"].(float64); ok {
+			total = int64(value)
+		}
+	} else if value, ok := totalValue.(float64); ok {
+		total = int64(value)
+	}
+
+	// 提取文档和高亮信息
+	hitsList, ok := hits["hits"].([]interface{})
+	if !ok {
+		return nil, nil, 0, fmt.Errorf("invalid hits format in search response")
+	}
+
+	documents := make([]*models.ConversationDocument, 0, len(hitsList))
+	highlights := make([]map[string]interface{}, 0, len(hitsList))
+
+	for _, hit := range hitsList {
+		hitMap, ok := hit.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		source, ok := hitMap["_source"].(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		// 解析文档
+		doc := &models.ConversationDocument{}
+		if err := r.parseDocument(source, doc); err != nil {
+			continue // 跳过解析失败的文档
+		}
+
+		// 提取高亮信息
+		highlight := make(map[string]interface{})
+		if highlightData, exists := hitMap["highlight"]; exists {
+			if highlightMap, ok := highlightData.(map[string]interface{}); ok {
+				highlight = highlightMap
+			}
+		}
+
+		documents = append(documents, doc)
+		highlights = append(highlights, highlight)
+	}
+
+	return documents, highlights, total, nil
+}
+
+// contains 检查字符串是否包含子字符串
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > len(substr) && indexOf(s, substr) >= 0))
+}
+
+// indexOf 查找子字符串在字符串中的位置
+func indexOf(s, substr string) int {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return i
+		}
+	}
+	return -1
+}
+
+// removeHighlightTags 移除高亮标签，提取纯文本内容
+func removeHighlightTags(text string) string {
+	// 移除 <mark> 和 </mark> 标签
+	text = strings.ReplaceAll(text, "<mark>", "")
+	text = strings.ReplaceAll(text, "</mark>", "")
+	return text
 }

@@ -453,7 +453,7 @@ const docTemplate = `{
         },
         "/api/v1/search": {
             "get": {
-                "description": "Search conversations by title or message content, returns conversation list",
+                "description": "Search conversations by title or message content, returns conversation list with matched messages",
                 "consumes": [
                     "application/json"
                 ],
@@ -506,7 +506,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/response.ConversationListResponse"
+                                            "$ref": "#/definitions/response.SearchResponse"
                                         }
                                     }
                                 }
@@ -719,6 +719,103 @@ const docTemplate = `{
                 },
                 "success": {
                     "type": "boolean"
+                }
+            }
+        },
+        "response.SearchConversationResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "matched_fields": {
+                    "description": "匹配信息，用于前端高亮",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "messages": {
+                    "description": "匹配的消息列表（如果 conversation 匹配但消息不匹配，则为空；最多返回3条消息）",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.SearchMessageResponse"
+                    }
+                },
+                "model": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "source_title": {
+                    "type": "string"
+                },
+                "title": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "user_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.SearchMessageResponse": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string"
+                },
+                "conversation_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "matched_fields": {
+                    "description": "匹配信息，用于前端高亮",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "role": {
+                    "type": "string"
+                },
+                "source_content": {
+                    "type": "string"
+                },
+                "source_id": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "response.SearchResponse": {
+            "type": "object",
+            "properties": {
+                "conversations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.SearchConversationResponse"
+                    }
+                },
+                "query": {
+                    "description": "搜索关键词，用于前端高亮",
+                    "type": "string"
                 }
             }
         },
