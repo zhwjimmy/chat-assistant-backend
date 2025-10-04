@@ -24,10 +24,15 @@ type ConversationListResponse struct {
 
 // NewConversationResponse creates a ConversationResponse from models.Conversation
 func NewConversationResponse(conversation *models.Conversation) *ConversationResponse {
+	title := conversation.Title
+	if title == "" {
+		title = conversation.SourceTitle
+	}
+
 	return &ConversationResponse{
 		ID:        conversation.Base.ID,
 		UserID:    conversation.UserID,
-		Title:     conversation.Title,
+		Title:     title,
 		Provider:  conversation.Provider,
 		Model:     conversation.Model,
 		CreatedAt: conversation.Base.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),

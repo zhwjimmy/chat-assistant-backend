@@ -23,11 +23,15 @@ type MessageListResponse struct {
 
 // NewMessageResponse creates a MessageResponse from models.Message
 func NewMessageResponse(message *models.Message) *MessageResponse {
+	content := message.Content
+	if content == "" {
+		content = message.SourceContent
+	}
 	return &MessageResponse{
 		ID:             message.Base.ID,
 		ConversationID: message.ConversationID,
 		Role:           message.Role,
-		Content:        message.Content,
+		Content:        content,
 		CreatedAt:      message.Base.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:      message.Base.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
