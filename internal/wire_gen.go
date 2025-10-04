@@ -9,6 +9,7 @@ package internal
 import (
 	"chat-assistant-backend/internal/config"
 	"chat-assistant-backend/internal/handlers"
+	"chat-assistant-backend/internal/migrations"
 	"chat-assistant-backend/internal/repositories"
 	"chat-assistant-backend/internal/server"
 	"chat-assistant-backend/internal/services"
@@ -24,20 +25,23 @@ func InitializeApp() (*server.Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	db, err := NewDatabase(configConfig)
+	db, err := InitializeDatabase(configConfig)
 	if err != nil {
 		return nil, err
 	}
 	userRepository := repositories.NewUserRepository(db)
 	conversationRepository := repositories.NewConversationRepository(db)
 	messageRepository := repositories.NewMessageRepository(db)
+	searchRepository := repositories.NewSearchRepository(db)
 	userService := services.NewUserService(userRepository)
 	conversationService := services.NewConversationService(conversationRepository)
 	messageService := services.NewMessageService(messageRepository)
+	searchService := services.NewSearchService(searchRepository)
 	userHandler := handlers.NewUserHandler(userService)
 	conversationHandler := handlers.NewConversationHandler(conversationService)
 	messageHandler := handlers.NewMessageHandler(messageService)
-	serverServer := NewServerWithDependencies(configConfig, db, userRepository, conversationRepository, messageRepository, userService, conversationService, messageService, userHandler, conversationHandler, messageHandler)
+	searchHandler := handlers.NewSearchHandler(searchService)
+	serverServer := NewServerWithDependencies(configConfig, db, userRepository, conversationRepository, messageRepository, searchRepository, userService, conversationService, messageService, searchService, userHandler, conversationHandler, messageHandler, searchHandler)
 	return serverServer, nil
 }
 
@@ -54,6 +58,30 @@ func NewDatabase(cfg *config.Config) (*gorm.DB, error) {
 	return db, nil
 }
 
+// RunMigrations runs database migrations
+func RunMigrations(db *gorm.DB) error {
+	migrator, err := migrations.NewMigrator(db, nil)
+	if err != nil {
+		return err
+	}
+
+	return migrator.Up()
+}
+
+// InitializeDatabase creates database connection and runs migrations
+func InitializeDatabase(cfg *config.Config) (*gorm.DB, error) {
+	db, err := NewDatabase(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := RunMigrations(db); err != nil {
+		return nil, err
+	}
+
+	return db, nil
+}
+
 // NewServerWithDependencies creates a server with all dependencies injected
 func NewServerWithDependencies(
 	cfg *config.Config,
@@ -61,12 +89,15 @@ func NewServerWithDependencies(
 	userRepo *repositories.UserRepository,
 	conversationRepo *repositories.ConversationRepository,
 	messageRepo *repositories.MessageRepository,
+	searchRepo *repositories.SearchRepository,
 	userService *services.UserService,
 	conversationService *services.ConversationService,
 	messageService *services.MessageService,
+	searchService *services.SearchService,
 	userHandler *handlers.UserHandler,
 	conversationHandler *handlers.ConversationHandler,
 	messageHandler *handlers.MessageHandler,
+	searchHandler *handlers.SearchHandler,
 ) *server.Server {
-	return server.NewWithDependencies(cfg, db, userHandler, conversationHandler, messageHandler)
+	return server.NewWithDependencies(cfg, db, userHandler, conversationHandler, messageHandler, searchHandler)
 }
