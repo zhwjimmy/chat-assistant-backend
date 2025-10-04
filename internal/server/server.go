@@ -56,11 +56,14 @@ func New(cfg *config.Config, db *gorm.DB) *Server {
 	userService := services.NewUserService(userRepo)
 	conversationService := services.NewConversationService(conversationRepo)
 	messageService := services.NewMessageService(messageRepo)
+	searchRepo := repositories.NewSearchRepository(db)
+	searchService := services.NewSearchService(searchRepo)
 
 	// Initialize handlers
 	userHandler := handlers.NewUserHandler(userService)
 	conversationHandler := handlers.NewConversationHandler(conversationService)
 	messageHandler := handlers.NewMessageHandler(messageService)
+	searchHandler := handlers.NewSearchHandler(searchService)
 
 	// Add health check endpoint
 	router.GET("/health", healthCheckHandler)
@@ -81,6 +84,9 @@ func New(cfg *config.Config, db *gorm.DB) *Server {
 		api.GET("/messages", messageHandler.GetMessages)
 		api.GET("/messages/:id", messageHandler.GetMessage)
 		api.DELETE("/messages/:id", messageHandler.DeleteMessage)
+
+		// Search routes
+		api.GET("/search", searchHandler.Search)
 	}
 
 	server := &http.Server{
@@ -189,7 +195,7 @@ func corsMiddleware(cfg config.CORSConfig) gin.HandlerFunc {
 }
 
 // NewWithDependencies creates a new server instance with pre-initialized dependencies
-func NewWithDependencies(cfg *config.Config, db *gorm.DB, userHandler *handlers.UserHandler, conversationHandler *handlers.ConversationHandler, messageHandler *handlers.MessageHandler) *Server {
+func NewWithDependencies(cfg *config.Config, db *gorm.DB, userHandler *handlers.UserHandler, conversationHandler *handlers.ConversationHandler, messageHandler *handlers.MessageHandler, searchHandler *handlers.SearchHandler) *Server {
 	// Set Gin mode
 	if cfg.Logging.Level == "debug" {
 		gin.SetMode(gin.DebugMode)
@@ -227,6 +233,9 @@ func NewWithDependencies(cfg *config.Config, db *gorm.DB, userHandler *handlers.
 		api.GET("/messages", messageHandler.GetMessages)
 		api.GET("/messages/:id", messageHandler.GetMessage)
 		api.DELETE("/messages/:id", messageHandler.DeleteMessage)
+
+		// Search routes
+		api.GET("/search", searchHandler.Search)
 	}
 
 	server := &http.Server{

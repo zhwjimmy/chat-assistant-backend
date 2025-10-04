@@ -27,14 +27,24 @@ func NewDatabase(cfg *config.Config) (*gorm.DB, error) {
 	return db, nil
 }
 
-// RunMigrations runs database migrations and returns the database connection
-func RunMigrations(cfg *config.Config, db *gorm.DB) (*gorm.DB, error) {
+// RunMigrations runs database migrations
+func RunMigrations(db *gorm.DB) error {
 	migrator, err := migrations.NewMigrator(db, nil)
+	if err != nil {
+		return err
+	}
+
+	return migrator.Up()
+}
+
+// InitializeDatabase creates database connection and runs migrations
+func InitializeDatabase(cfg *config.Config) (*gorm.DB, error) {
+	db, err := NewDatabase(cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := migrator.Up(); err != nil {
+	if err := RunMigrations(db); err != nil {
 		return nil, err
 	}
 
@@ -47,26 +57,26 @@ func InitializeApp() (*server.Server, error) {
 		// Config
 		config.Load,
 
-		// Database
-		NewDatabase,
+		// Database (with migrations)
+		InitializeDatabase,
 
-		// Migrations (runs automatically after database connection)
-		RunMigrations,
-
-		// Repositories (use migrated database)
+		// Repositories
 		repositories.NewUserRepository,
 		repositories.NewConversationRepository,
 		repositories.NewMessageRepository,
+		repositories.NewSearchRepository,
 
 		// Services
 		services.NewUserService,
 		services.NewConversationService,
 		services.NewMessageService,
+		services.NewSearchService,
 
 		// Handlers
 		handlers.NewUserHandler,
 		handlers.NewConversationHandler,
 		handlers.NewMessageHandler,
+		handlers.NewSearchHandler,
 
 		// Server with dependencies
 		NewServerWithDependencies,
@@ -81,12 +91,15 @@ func NewServerWithDependencies(
 	userRepo *repositories.UserRepository,
 	conversationRepo *repositories.ConversationRepository,
 	messageRepo *repositories.MessageRepository,
+	searchRepo *repositories.SearchRepository,
 	userService *services.UserService,
 	conversationService *services.ConversationService,
 	messageService *services.MessageService,
+	searchService *services.SearchService,
 	userHandler *handlers.UserHandler,
 	conversationHandler *handlers.ConversationHandler,
 	messageHandler *handlers.MessageHandler,
+	searchHandler *handlers.SearchHandler,
 ) *server.Server {
-	return server.NewWithDependencies(cfg, db, userHandler, conversationHandler, messageHandler)
+	return server.NewWithDependencies(cfg, db, userHandler, conversationHandler, messageHandler, searchHandler)
 }
