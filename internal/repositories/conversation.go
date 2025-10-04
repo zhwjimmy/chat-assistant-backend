@@ -12,6 +12,7 @@ type ConversationRepositoryInterface interface {
 	GetByID(id uuid.UUID) (*models.Conversation, error)
 	GetByUserID(userID uuid.UUID, page, limit int) ([]*models.Conversation, int64, error)
 	Delete(id uuid.UUID) error
+	FindAll() ([]*models.Conversation, error)
 }
 
 // ConversationRepository handles conversation data access
@@ -67,4 +68,18 @@ func (r *ConversationRepository) GetByUserID(userID uuid.UUID, page, limit int) 
 // Delete soft deletes a conversation by ID
 func (r *ConversationRepository) Delete(id uuid.UUID) error {
 	return r.db.Delete(&models.Conversation{}, id).Error
+}
+
+func (r *ConversationRepository) FindAll() ([]*models.Conversation, error) {
+	var conversations []*models.Conversation
+
+	// 预加载 messages，按创建时间排序
+	err := r.db.Preload("Messages", func(db *gorm.DB) *gorm.DB {
+		return db.Order("created_at ASC")
+	}).Order("created_at ASC").Find(&conversations).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return conversations, nil
 }

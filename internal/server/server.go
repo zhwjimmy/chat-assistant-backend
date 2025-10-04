@@ -15,6 +15,7 @@ import (
 
 	"chat-assistant-backend/internal/config"
 	"chat-assistant-backend/internal/handlers"
+	"chat-assistant-backend/internal/infra/elasticsearch"
 	"chat-assistant-backend/internal/logger"
 	"chat-assistant-backend/internal/repositories"
 	"chat-assistant-backend/internal/services"
@@ -31,7 +32,7 @@ type Server struct {
 }
 
 // New creates a new server instance
-func New(cfg *config.Config, db *gorm.DB) *Server {
+func New(cfg *config.Config, db *gorm.DB, esClient *elasticsearch.Client) *Server {
 	// Set Gin mode
 	if cfg.Logging.Level == "debug" {
 		gin.SetMode(gin.DebugMode)
@@ -51,12 +52,12 @@ func New(cfg *config.Config, db *gorm.DB) *Server {
 	userRepo := repositories.NewUserRepository(db)
 	conversationRepo := repositories.NewConversationRepository(db)
 	messageRepo := repositories.NewMessageRepository(db)
+	searchRepo := repositories.NewElasticsearchRepository(esClient.GetClient(), cfg.Elasticsearch.Index.Conversations)
 
 	// Initialize services
 	userService := services.NewUserService(userRepo)
 	conversationService := services.NewConversationService(conversationRepo)
 	messageService := services.NewMessageService(messageRepo)
-	searchRepo := repositories.NewSearchRepository(db)
 	searchService := services.NewSearchService(searchRepo)
 
 	// Initialize handlers

@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	"chat-assistant-backend/internal/config"
+	"chat-assistant-backend/internal/infra/elasticsearch"
 	"chat-assistant-backend/internal/logger"
 	"chat-assistant-backend/internal/server"
 )
@@ -19,10 +20,10 @@ type App struct {
 }
 
 // New creates a new application instance
-func New(cfg *config.Config, db *gorm.DB) *App {
+func New(cfg *config.Config, db *gorm.DB, esClient *elasticsearch.Client) *App {
 	return &App{
 		config: cfg,
-		server: server.New(cfg, db),
+		server: server.New(cfg, db, esClient),
 		logger: logger.GetLogger(),
 	}
 }

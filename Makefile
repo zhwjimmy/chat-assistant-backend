@@ -21,11 +21,15 @@ IMPORTER_BINARY=chat-assistant-importer
 IMPORTER_PATH=./cmd/importer
 MIGRATE_BINARY=chat-assistant-migrate
 MIGRATE_PATH=./cmd/migrate
+ES_MANAGER_BINARY=chat-assistant-es-manager
+ES_MANAGER_PATH=./cmd/es-manager
+DATA_SYNC_BINARY=chat-assistant-data-sync
+DATA_SYNC_PATH=./cmd/data-sync
 
 # Migration parameters
 MIGRATIONS_DIR=./internal/migrations
 
-.PHONY: all build clean test deps run docker-build docker-run gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean build-importer run-importer test-import build-migrate migrate-up migrate-down migrate-reset migrate-status migrate-version migrate-create migrate-fix migrate-validate
+.PHONY: all build clean test deps run docker-build docker-run gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean build-importer run-importer test-import build-migrate migrate-up migrate-down migrate-reset migrate-status migrate-version migrate-create migrate-fix migrate-validate build-es-manager es-status es-init es-recreate es-health build-data-sync sync-data sync-data-dry
 
 # Default target
 all: deps build
@@ -50,6 +54,20 @@ build-migrate:
 	@mkdir -p $(BUILD_DIR)
 	$(GOBUILD) -o $(BUILD_DIR)/$(MIGRATE_BINARY) -v $(MIGRATE_PATH)
 	@echo "Migration tool build completed: $(BUILD_DIR)/$(MIGRATE_BINARY)"
+
+# Build ES manager tool
+build-es-manager:
+	@echo "Building $(ES_MANAGER_BINARY)..."
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) -o $(BUILD_DIR)/$(ES_MANAGER_BINARY) -v $(ES_MANAGER_PATH)
+	@echo "ES Manager build completed: $(BUILD_DIR)/$(ES_MANAGER_BINARY)"
+
+# Build data sync tool
+build-data-sync:
+	@echo "Building $(DATA_SYNC_BINARY)..."
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) -o $(BUILD_DIR)/$(DATA_SYNC_BINARY) -v $(DATA_SYNC_PATH)
+	@echo "Data Sync tool build completed: $(BUILD_DIR)/$(DATA_SYNC_BINARY)"
 
 # Clean build artifacts
 clean:
@@ -242,6 +260,56 @@ migrate-validate:
 		$(GOCMD) run $(MIGRATE_PATH) -command validate; \
 	fi
 
+# Elasticsearch Management Commands
+es-status:
+	@echo "Checking Elasticsearch status..."
+	@if [ -f $(BUILD_DIR)/$(ES_MANAGER_BINARY) ]; then \
+		$(BUILD_DIR)/$(ES_MANAGER_BINARY) -command status; \
+	else \
+		$(GOCMD) run $(ES_MANAGER_PATH) -command status; \
+	fi
+
+es-init:
+	@echo "Initializing Elasticsearch indexes..."
+	@if [ -f $(BUILD_DIR)/$(ES_MANAGER_BINARY) ]; then \
+		$(BUILD_DIR)/$(ES_MANAGER_BINARY) -command init; \
+	else \
+		$(GOCMD) run $(ES_MANAGER_PATH) -command init; \
+	fi
+
+es-recreate:
+	@echo "Recreating Elasticsearch indexes..."
+	@if [ -f $(BUILD_DIR)/$(ES_MANAGER_BINARY) ]; then \
+		$(BUILD_DIR)/$(ES_MANAGER_BINARY) -command recreate; \
+	else \
+		$(GOCMD) run $(ES_MANAGER_PATH) -command recreate; \
+	fi
+
+es-health:
+	@echo "Checking Elasticsearch health..."
+	@if [ -f $(BUILD_DIR)/$(ES_MANAGER_BINARY) ]; then \
+		$(BUILD_DIR)/$(ES_MANAGER_BINARY) -command health; \
+	else \
+		$(GOCMD) run $(ES_MANAGER_PATH) -command health; \
+	fi
+
+# Data Sync Commands
+sync-data:
+	@echo "Syncing data to Elasticsearch..."
+	@if [ -f $(BUILD_DIR)/$(DATA_SYNC_BINARY) ]; then \
+		$(BUILD_DIR)/$(DATA_SYNC_BINARY); \
+	else \
+		$(GOCMD) run $(DATA_SYNC_PATH); \
+	fi
+
+sync-data-dry:
+	@echo "Dry run data sync..."
+	@if [ -f $(BUILD_DIR)/$(DATA_SYNC_BINARY) ]; then \
+		$(BUILD_DIR)/$(DATA_SYNC_BINARY) -dry-run; \
+	else \
+		$(GOCMD) run $(DATA_SYNC_PATH) -dry-run; \
+	fi
+
 
 # Generate Swagger documentation
 gen-swagger:
@@ -340,6 +408,16 @@ help:
 	@echo "  migrate-create  - Create new migration (use NAME=migration_name)"
 	@echo "  migrate-fix     - Fix migration versioning issues"
 	@echo "  migrate-validate - Validate migration files"
+	@echo ""
+	@echo "Elasticsearch:"
+	@echo "  es-status       - Check Elasticsearch status"
+	@echo "  es-init         - Initialize Elasticsearch indexes"
+	@echo "  es-recreate     - Recreate Elasticsearch indexes"
+	@echo "  es-health       - Check Elasticsearch health"
+	@echo ""
+	@echo "Data Sync:"
+	@echo "  sync-data       - Sync database data to Elasticsearch"
+	@echo "  sync-data-dry   - Dry run data sync (no actual sync)"
 	@echo ""
 	@echo "Docker:"
 	@echo "  docker-build   - Build Docker image"

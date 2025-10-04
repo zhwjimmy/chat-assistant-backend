@@ -3,19 +3,24 @@ package services
 import (
 	"strings"
 
-	"chat-assistant-backend/internal/repositories"
+	"chat-assistant-backend/internal/models"
 	"chat-assistant-backend/internal/response"
 
 	"github.com/google/uuid"
 )
 
+// SearchRepository interface abstracts search functionality
+type SearchRepository interface {
+	SearchConversationsWithMessages(query string, userID *uuid.UUID, page, limit int) ([]*models.Conversation, int64, error)
+}
+
 // SearchService handles search business logic
 type SearchService struct {
-	searchRepo *repositories.SearchRepository
+	searchRepo SearchRepository
 }
 
 // NewSearchService creates a new search service
-func NewSearchService(searchRepo *repositories.SearchRepository) *SearchService {
+func NewSearchService(searchRepo SearchRepository) *SearchService {
 	return &SearchService{
 		searchRepo: searchRepo,
 	}

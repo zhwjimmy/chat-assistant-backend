@@ -16,3 +16,17 @@ type Message struct {
 func (Message) TableName() string {
 	return "messages"
 }
+
+// ToESDocument converts Message to MessageDocument for Elasticsearch
+func (m *Message) ToESDocument() MessageDocument {
+	return MessageDocument{
+		ID:             m.ID,
+		ConversationID: m.ConversationID,
+		Role:           m.Role,
+		Content:        m.Content,
+		SourceID:       m.SourceID,
+		SourceContent:  m.SourceContent,
+		CreatedAt:      m.CreatedAt,
+		UpdatedAt:      m.UpdatedAt,
+	}
+}

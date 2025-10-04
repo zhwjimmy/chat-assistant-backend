@@ -9,13 +9,15 @@ import (
 
 // Config holds all configuration for the application
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	CORS     CORSConfig     `mapstructure:"cors"`
-	Logging  LoggingConfig  `mapstructure:"logging"`
-	I18n     I18nConfig     `mapstructure:"i18n"`
-	Shutdown ShutdownConfig `mapstructure:"shutdown"`
-	Import   ImportConfig   `mapstructure:"import"`
+	Server        ServerConfig        `mapstructure:"server"`
+	Database      DatabaseConfig      `mapstructure:"database"`
+	Elasticsearch ElasticsearchConfig `mapstructure:"elasticsearch"`
+	Search        SearchConfig        `mapstructure:"search"`
+	CORS          CORSConfig          `mapstructure:"cors"`
+	Logging       LoggingConfig       `mapstructure:"logging"`
+	I18n          I18nConfig          `mapstructure:"i18n"`
+	Shutdown      ShutdownConfig      `mapstructure:"shutdown"`
+	Import        ImportConfig        `mapstructure:"import"`
 }
 
 // ServerConfig holds server configuration
@@ -80,6 +82,27 @@ type ImportConfig struct {
 type ProviderConfig struct {
 	Enabled          bool `mapstructure:"enabled"`
 	MaxConversations int  `mapstructure:"max_conversations"`
+}
+
+// ElasticsearchConfig holds Elasticsearch configuration
+type ElasticsearchConfig struct {
+	Hosts    []string      `mapstructure:"hosts"`
+	Username string        `mapstructure:"username"`
+	Password string        `mapstructure:"password"`
+	Timeout  time.Duration `mapstructure:"timeout"`
+	Index    IndexConfig   `mapstructure:"index"`
+}
+
+// IndexConfig holds index-specific configuration
+type IndexConfig struct {
+	Conversations string `mapstructure:"conversations"`
+	Messages      string `mapstructure:"messages"`
+}
+
+// SearchConfig holds search configuration
+type SearchConfig struct {
+	Strategy string `mapstructure:"strategy"` // "postgres", "elasticsearch", "hybrid"
+	Fallback bool   `mapstructure:"fallback"` // fallback to postgres if ES is unavailable
 }
 
 // Load loads configuration from file and environment variables
@@ -161,6 +184,18 @@ func setDefaults() {
 	viper.SetDefault("import.providers.claude.max_conversations", 1000)
 	viper.SetDefault("import.providers.gemini.enabled", true)
 	viper.SetDefault("import.providers.gemini.max_conversations", 1000)
+
+	// Elasticsearch defaults
+	viper.SetDefault("elasticsearch.hosts", []string{"http://localhost:9200"})
+	viper.SetDefault("elasticsearch.username", "")
+	viper.SetDefault("elasticsearch.password", "")
+	viper.SetDefault("elasticsearch.timeout", "30s")
+	viper.SetDefault("elasticsearch.index.conversations", "conversations")
+	viper.SetDefault("elasticsearch.index.messages", "messages")
+
+	// Search defaults
+	viper.SetDefault("search.strategy", "postgres") // postgres, elasticsearch, hybrid
+	viper.SetDefault("search.fallback", true)
 }
 
 // GetDSN returns the database connection string

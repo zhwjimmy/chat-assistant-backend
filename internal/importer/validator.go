@@ -45,7 +45,7 @@ func (v *Validator) validateConversation(conv *types.StandardConversation, index
 	}
 
 	if conv.Title == "" {
-		return fmt.Errorf("conversation title is empty")
+		// return fmt.Errorf("conversation title is empty")
 	}
 
 	if conv.Provider == "" {
@@ -73,7 +73,7 @@ func (v *Validator) validateMessage(msg *types.StandardMessage, index int) error
 	}
 
 	if msg.Content == "" {
-		return fmt.Errorf("message content is empty")
+		// return fmt.Errorf("message content is empty")
 	}
 
 	// 验证角色

@@ -9,6 +9,7 @@ package internal
 import (
 	"chat-assistant-backend/internal/config"
 	"chat-assistant-backend/internal/handlers"
+	"chat-assistant-backend/internal/infra/elasticsearch"
 	"chat-assistant-backend/internal/migrations"
 	"chat-assistant-backend/internal/repositories"
 	"chat-assistant-backend/internal/server"
@@ -32,7 +33,11 @@ func InitializeApp() (*server.Server, error) {
 	userRepository := repositories.NewUserRepository(db)
 	conversationRepository := repositories.NewConversationRepository(db)
 	messageRepository := repositories.NewMessageRepository(db)
-	searchRepository := repositories.NewSearchRepository(db)
+	client, err := NewElasticsearchClient(configConfig)
+	if err != nil {
+		return nil, err
+	}
+	searchRepository := NewElasticsearchRepository(client, configConfig)
 	userService := services.NewUserService(userRepository)
 	conversationService := services.NewConversationService(conversationRepository)
 	messageService := services.NewMessageService(messageRepository)
@@ -56,6 +61,32 @@ func NewDatabase(cfg *config.Config) (*gorm.DB, error) {
 	}
 
 	return db, nil
+}
+
+// NewElasticsearchClient creates a new Elasticsearch client
+func NewElasticsearchClient(cfg *config.Config) (*elasticsearch.Client, error) {
+	esConfig := &elasticsearch.Config{
+		Hosts:    cfg.Elasticsearch.Hosts,
+		Username: cfg.Elasticsearch.Username,
+		Password: cfg.Elasticsearch.Password,
+		Timeout:  cfg.Elasticsearch.Timeout,
+		Index: elasticsearch.IndexConfig{
+			Conversations: cfg.Elasticsearch.Index.Conversations,
+			Messages:      cfg.Elasticsearch.Index.Messages,
+		},
+	}
+
+	return elasticsearch.NewClient(esConfig)
+}
+
+// NewElasticsearchIndexer creates a new Elasticsearch indexer
+func NewElasticsearchIndexer(esClient *elasticsearch.Client, cfg *config.Config) repositories.ElasticsearchIndexer {
+	return repositories.NewElasticsearchIndexer(esClient.GetClient(), cfg.Elasticsearch.Index.Conversations)
+}
+
+// NewElasticsearchRepository creates a new Elasticsearch repository
+func NewElasticsearchRepository(esClient *elasticsearch.Client, cfg *config.Config) services.SearchRepository {
+	return repositories.NewElasticsearchRepository(esClient.GetClient(), cfg.Elasticsearch.Index.Conversations)
 }
 
 // RunMigrations runs database migrations
@@ -89,7 +120,7 @@ func NewServerWithDependencies(
 	userRepo *repositories.UserRepository,
 	conversationRepo *repositories.ConversationRepository,
 	messageRepo *repositories.MessageRepository,
-	searchRepo *repositories.SearchRepository,
+	searchRepo services.SearchRepository,
 	userService *services.UserService,
 	conversationService *services.ConversationService,
 	messageService *services.MessageService,
