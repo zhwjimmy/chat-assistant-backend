@@ -42,20 +42,28 @@ func (r *ElasticsearchRepositoryImpl) SearchConversationsWithMatchedMessages(que
 		return nil, nil, nil, 0, err
 	}
 
-	// 2. 使用精确匹配过滤结果，确保关键词精确匹配
+	// 2. 使用精确匹配过滤结果，确保关键词精确匹配（只在有搜索关键词时进行）
 	filteredDocs := make([]*models.ConversationDocument, 0, len(esDocs))
 	filteredHighlights := make([]map[string]interface{}, 0, len(highlights))
 
 	for i, doc := range esDocs {
-		// 检查是否真正包含关键词
-		if r.hasExactMatch(doc, query) {
+		// 如果没有搜索关键词，直接使用 ES 返回的结果
+		if query == "" {
 			filteredDocs = append(filteredDocs, doc)
 			filteredHighlights = append(filteredHighlights, highlights[i])
+		} else {
+			// 有搜索关键词时，检查是否真正包含关键词
+			if r.hasExactMatch(doc, query) {
+				filteredDocs = append(filteredDocs, doc)
+				filteredHighlights = append(filteredHighlights, highlights[i])
+			}
 		}
 	}
 
-	// 3. 按相关性评分排序
-	r.sortByRelevance(filteredDocs, query)
+	// 3. 按相关性评分排序（只在有搜索关键词时进行）
+	if query != "" {
+		r.sortByRelevance(filteredDocs, query)
+	}
 
 	// 4. 提取匹配的消息和字段信息
 	matchedMessagesMap := make(map[uuid.UUID][]*models.MessageDocument)
@@ -198,162 +206,189 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 		})
 	}
 
-	// 搜索查询 - 平衡精确匹配和相关性
-	searchQueries := []map[string]interface{}{
-		// 1. 完全精确匹配 - 最高优先级 (权重: 10)
-		{
-			"multi_match": map[string]interface{}{
-				"query":  query,
-				"fields": []string{"title.exact^10", "source_title.exact^8"},
-				"type":   "phrase",
-				"slop":   0,
+	// 构建搜索查询
+	var searchQueries []map[string]interface{}
+
+	// 如果有搜索关键词，添加文本搜索查询
+	if query != "" {
+		// 搜索查询 - 平衡精确匹配和相关性
+		searchQueries = []map[string]interface{}{
+			// 1. 完全精确匹配 - 最高优先级 (权重: 10)
+			{
+				"multi_match": map[string]interface{}{
+					"query":  query,
+					"fields": []string{"title.exact^10", "source_title.exact^8"},
+					"type":   "phrase",
+					"slop":   0,
+				},
 			},
-		},
-		{
-			"nested": map[string]interface{}{
-				"path": "messages",
-				"query": map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":  query,
-						"fields": []string{"messages.content.exact^10", "messages.source_content.exact^8"},
-						"type":   "phrase",
-						"slop":   0,
+			{
+				"nested": map[string]interface{}{
+					"path": "messages",
+					"query": map[string]interface{}{
+						"multi_match": map[string]interface{}{
+							"query":  query,
+							"fields": []string{"messages.content.exact^10", "messages.source_content.exact^8"},
+							"type":   "phrase",
+							"slop":   0,
+						},
 					},
 				},
 			},
-		},
-		{
-			"nested": map[string]interface{}{
-				"path": "tags",
-				"query": map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":  query,
-						"fields": []string{"tags.name.exact^6"},
-						"type":   "phrase",
-						"slop":   0,
+			{
+				"nested": map[string]interface{}{
+					"path": "tags",
+					"query": map[string]interface{}{
+						"multi_match": map[string]interface{}{
+							"query":  query,
+							"fields": []string{"tags.name.exact^6"},
+							"type":   "phrase",
+							"slop":   0,
+						},
 					},
 				},
 			},
-		},
-		// 2. 标准匹配 - 高优先级 (权重: 8)
-		{
-			"multi_match": map[string]interface{}{
-				"query":     query,
-				"fields":    []string{"title^8", "source_title^6"},
-				"type":      "best_fields",
-				"fuzziness": "AUTO",
+			// 2. 标准匹配 - 高优先级 (权重: 8)
+			{
+				"multi_match": map[string]interface{}{
+					"query":     query,
+					"fields":    []string{"title^8", "source_title^6"},
+					"type":      "best_fields",
+					"fuzziness": "AUTO",
+				},
 			},
-		},
-		{
-			"nested": map[string]interface{}{
-				"path": "messages",
-				"query": map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":     query,
-						"fields":    []string{"messages.content^8", "messages.source_content^6"},
-						"type":      "best_fields",
-						"fuzziness": "AUTO",
+			{
+				"nested": map[string]interface{}{
+					"path": "messages",
+					"query": map[string]interface{}{
+						"multi_match": map[string]interface{}{
+							"query":     query,
+							"fields":    []string{"messages.content^8", "messages.source_content^6"},
+							"type":      "best_fields",
+							"fuzziness": "AUTO",
+						},
 					},
 				},
 			},
-		},
-		{
-			"nested": map[string]interface{}{
-				"path": "tags",
-				"query": map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":     query,
-						"fields":    []string{"tags.name^6"},
-						"type":      "best_fields",
-						"fuzziness": "AUTO",
+			{
+				"nested": map[string]interface{}{
+					"path": "tags",
+					"query": map[string]interface{}{
+						"multi_match": map[string]interface{}{
+							"query":     query,
+							"fields":    []string{"tags.name^6"},
+							"type":      "best_fields",
+							"fuzziness": "AUTO",
+						},
 					},
 				},
 			},
-		},
-		// 3. 词级别匹配 - 中等优先级 (权重: 5)
-		{
-			"multi_match": map[string]interface{}{
-				"query":    query,
-				"fields":   []string{"title^5", "source_title^4"},
-				"type":     "cross_fields",
-				"operator": "and", // 所有词都必须匹配
+			// 3. 词级别匹配 - 中等优先级 (权重: 5)
+			{
+				"multi_match": map[string]interface{}{
+					"query":    query,
+					"fields":   []string{"title^5", "source_title^4"},
+					"type":     "cross_fields",
+					"operator": "and", // 所有词都必须匹配
+				},
 			},
-		},
-		{
-			"nested": map[string]interface{}{
-				"path": "messages",
-				"query": map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":    query,
-						"fields":   []string{"messages.content^5", "messages.source_content^4"},
-						"type":     "cross_fields",
-						"operator": "and", // 所有词都必须匹配
+			{
+				"nested": map[string]interface{}{
+					"path": "messages",
+					"query": map[string]interface{}{
+						"multi_match": map[string]interface{}{
+							"query":    query,
+							"fields":   []string{"messages.content^5", "messages.source_content^4"},
+							"type":     "cross_fields",
+							"operator": "and", // 所有词都必须匹配
+						},
 					},
 				},
 			},
-		},
-		{
-			"nested": map[string]interface{}{
-				"path": "tags",
-				"query": map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":    query,
-						"fields":   []string{"tags.name^4"},
-						"type":     "cross_fields",
-						"operator": "and", // 所有词都必须匹配
+			{
+				"nested": map[string]interface{}{
+					"path": "tags",
+					"query": map[string]interface{}{
+						"multi_match": map[string]interface{}{
+							"query":    query,
+							"fields":   []string{"tags.name^4"},
+							"type":     "cross_fields",
+							"operator": "and", // 所有词都必须匹配
+						},
 					},
 				},
 			},
-		},
-		// 4. 部分匹配 - 低优先级 (权重: 2)
-		{
-			"multi_match": map[string]interface{}{
-				"query":    query,
-				"fields":   []string{"title^2", "source_title^1"},
-				"type":     "best_fields",
-				"operator": "or", // 任意词匹配即可
+			// 4. 部分匹配 - 低优先级 (权重: 2)
+			{
+				"multi_match": map[string]interface{}{
+					"query":    query,
+					"fields":   []string{"title^2", "source_title^1"},
+					"type":     "best_fields",
+					"operator": "or", // 任意词匹配即可
+				},
 			},
-		},
-		{
-			"nested": map[string]interface{}{
-				"path": "messages",
-				"query": map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":    query,
-						"fields":   []string{"messages.content^2", "messages.source_content^1"},
-						"type":     "best_fields",
-						"operator": "or", // 任意词匹配即可
+			{
+				"nested": map[string]interface{}{
+					"path": "messages",
+					"query": map[string]interface{}{
+						"multi_match": map[string]interface{}{
+							"query":    query,
+							"fields":   []string{"messages.content^2", "messages.source_content^1"},
+							"type":     "best_fields",
+							"operator": "or", // 任意词匹配即可
+						},
 					},
 				},
 			},
-		},
-		{
-			"nested": map[string]interface{}{
-				"path": "tags",
-				"query": map[string]interface{}{
-					"multi_match": map[string]interface{}{
-						"query":    query,
-						"fields":   []string{"tags.name^2"},
-						"type":     "best_fields",
-						"operator": "or", // 任意词匹配即可
+			{
+				"nested": map[string]interface{}{
+					"path": "tags",
+					"query": map[string]interface{}{
+						"multi_match": map[string]interface{}{
+							"query":    query,
+							"fields":   []string{"tags.name^2"},
+							"type":     "best_fields",
+							"operator": "or", // 任意词匹配即可
+						},
 					},
 				},
 			},
-		},
+		}
 	}
 
 	// 构建完整的查询
-	searchBody := map[string]interface{}{
-		"query": map[string]interface{}{
+	var queryClause map[string]interface{}
+
+	if len(searchQueries) > 0 {
+		// 有搜索关键词时，使用 bool 查询组合过滤条件和搜索查询
+		queryClause = map[string]interface{}{
 			"bool": map[string]interface{}{
 				"must":                 mustQueries,
 				"should":               searchQueries,
 				"minimum_should_match": 1,
 			},
-		},
-		"from": offset,
-		"size": limit,
-		"sort": []map[string]interface{}{
+		}
+	} else {
+		// 没有搜索关键词时，只使用过滤条件
+		if len(mustQueries) > 0 {
+			queryClause = map[string]interface{}{
+				"bool": map[string]interface{}{
+					"must": mustQueries,
+				},
+			}
+		} else {
+			// 没有任何条件时，返回所有文档
+			queryClause = map[string]interface{}{
+				"match_all": map[string]interface{}{},
+			}
+		}
+	}
+
+	// 构建排序条件
+	var sortConditions []map[string]interface{}
+	if len(searchQueries) > 0 {
+		// 有搜索关键词时，按相关性评分排序
+		sortConditions = []map[string]interface{}{
 			{
 				"_score": map[string]interface{}{
 					"order": "desc",
@@ -364,8 +399,22 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 					"order": "desc",
 				},
 			},
-		},
-		"highlight": map[string]interface{}{
+		}
+	} else {
+		// 没有搜索关键词时，只按创建时间排序
+		sortConditions = []map[string]interface{}{
+			{
+				"created_at": map[string]interface{}{
+					"order": "desc",
+				},
+			},
+		}
+	}
+
+	// 构建高亮配置（只在有搜索关键词时使用）
+	var highlightConfig map[string]interface{}
+	if len(searchQueries) > 0 {
+		highlightConfig = map[string]interface{}{
 			"fields": map[string]interface{}{
 				"title":                   map[string]interface{}{},
 				"source_title":            map[string]interface{}{},
@@ -377,7 +426,19 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 			"post_tags":           []string{"</mark>"},
 			"fragment_size":       150, // 限制高亮片段长度
 			"number_of_fragments": 3,   // 最多返回3个高亮片段
-		},
+		}
+	}
+
+	searchBody := map[string]interface{}{
+		"query": queryClause,
+		"from":  offset,
+		"size":  limit,
+		"sort":  sortConditions,
+	}
+
+	// 只在有搜索关键词时添加高亮配置
+	if highlightConfig != nil {
+		searchBody["highlight"] = highlightConfig
 	}
 
 	// 序列化查询

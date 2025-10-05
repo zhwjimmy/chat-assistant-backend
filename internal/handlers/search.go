@@ -30,7 +30,7 @@ func NewSearchHandler(searchService services.SearchService) *SearchHandler {
 // @Tags Search
 // @Accept json
 // @Produce json
-// @Param q query string true "Search query"
+// @Param q query string false "Search query (optional, can be empty for filter-only queries)"
 // @Param user_id query string false "User ID" Format(uuid)
 // @Param provider_id query string false "Provider ID (e.g., openai, gemini, claude)"
 // @Param tag_id query string false "Tag ID for filtering conversations" Format(uuid)
@@ -43,12 +43,8 @@ func NewSearchHandler(searchService services.SearchService) *SearchHandler {
 // @Failure 500 {object} response.Response "Internal server error"
 // @Router /api/v1/search [get]
 func (h *SearchHandler) Search(c *gin.Context) {
-	// Parse search query
+	// Parse search query (optional)
 	query := c.Query("q")
-	if query == "" {
-		response.BadRequest(c, "MISSING_QUERY", "Search query is required", "q query parameter is required")
-		return
-	}
 
 	// Parse user ID (optional)
 	var userID *uuid.UUID

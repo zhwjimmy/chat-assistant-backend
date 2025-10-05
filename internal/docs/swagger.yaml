@@ -627,10 +627,10 @@ paths:
       description: Search conversations by title or message content, returns conversation
         list with matched messages
       parameters:
-      - description: Search query
+      - description: Search query (optional, can be empty for filter-only queries)
         in: query
         name: q
-        required: true
+        required: false
         type: string
       - description: User ID
         format: uuid

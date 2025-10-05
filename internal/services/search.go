@@ -31,9 +31,6 @@ func NewSearchService(searchRepo repositories.SearchRepository) SearchService {
 func (s *SearchServiceImpl) SearchWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, tagID *uuid.UUID, startDate, endDate *time.Time, page, limit int) (*response.SearchResponse, int64, error) {
 	// Validate and clean query
 	query = strings.TrimSpace(query)
-	if query == "" {
-		return &response.SearchResponse{Query: query, Conversations: []response.SearchConversationResponse{}}, 0, nil
-	}
 
 	// Search conversations with matched messages and field information
 	conversationDocs, matchedMessagesMap, matchedFieldsMap, total, err := s.searchRepo.SearchConversationsWithMatchedMessages(query, userID, providerID, tagID, startDate, endDate, page, limit)
