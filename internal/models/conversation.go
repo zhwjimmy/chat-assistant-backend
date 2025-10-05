@@ -11,6 +11,7 @@ type Conversation struct {
 	Model       string    `gorm:"type:varchar(50)" json:"model"`                     // gpt-4, gemini-pro, llama-3 等
 	SourceID    string    `gorm:"type:varchar(255);not null;index" json:"source_id"` // 原始数据中的ID，用于关联导入内容
 	SourceTitle string    `gorm:"type:varchar(500);not null" json:"source_title"`
+	TagIDs      []string  `gorm:"type:jsonb;default:'[]'" json:"tag_ids"`
 	Messages    []Message `gorm:"foreignKey:ConversationID" json:"messages,omitempty"`
 }
 
@@ -29,6 +30,7 @@ func (c *Conversation) ToESDocument() *ConversationDocument {
 		Model:       c.Model,
 		SourceID:    c.SourceID,
 		SourceTitle: c.SourceTitle,
+		TagIDs:      c.TagIDs,
 		CreatedAt:   c.CreatedAt,
 		UpdatedAt:   c.UpdatedAt,
 		Messages:    []MessageDocument{},

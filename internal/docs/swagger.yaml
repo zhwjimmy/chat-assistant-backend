@@ -17,6 +17,8 @@ definitions:
         type: string
       provider:
         type: string
+      source_id:
+        type: string
       title:
         type: string
       updated_at:
@@ -464,6 +466,20 @@ paths:
         format: uuid
         in: query
         name: user_id
+        type: string
+      - description: Provider ID (e.g., openai, gemini, claude)
+        in: query
+        name: provider_id
+        type: string
+      - description: Start date for filtering conversations
+        format: date
+        in: query
+        name: start_date
+        type: string
+      - description: End date for filtering conversations
+        format: date
+        in: query
+        name: end_date
         type: string
       - default: 1
         description: Page number

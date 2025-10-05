@@ -17,6 +17,7 @@ type ConversationDocument struct {
 	Model       string    `json:"model"`
 	SourceID    string    `json:"source_id"`
 	SourceTitle string    `json:"source_title"`
+	TagIDs      []string  `json:"tag_ids"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 
@@ -50,6 +51,7 @@ func (d *ConversationDocument) ToConversation() *Conversation {
 		Model:       d.Model,
 		SourceID:    d.SourceID,
 		SourceTitle: d.SourceTitle,
+		TagIDs:      d.TagIDs,
 	}
 }
 

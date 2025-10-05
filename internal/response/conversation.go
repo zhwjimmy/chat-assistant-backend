@@ -13,6 +13,7 @@ type ConversationResponse struct {
 	Title     string    `json:"title"`
 	Provider  string    `json:"provider"`
 	Model     string    `json:"model"`
+	SourceID  string    `json:"source_id"`
 	CreatedAt string    `json:"created_at"`
 	UpdatedAt string    `json:"updated_at"`
 }
@@ -35,6 +36,7 @@ func NewConversationResponse(conversation *models.Conversation) *ConversationRes
 		Title:     title,
 		Provider:  conversation.Provider,
 		Model:     conversation.Model,
+		SourceID:  conversation.SourceID,
 		CreatedAt: conversation.Base.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: conversation.Base.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

@@ -480,6 +480,26 @@ const docTemplate = `{
                         "in": "query"
                     },
                     {
+                        "type": "string",
+                        "description": "Provider ID (e.g., openai, gemini, claude)",
+                        "name": "provider_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "Start date for filtering conversations",
+                        "name": "start_date",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "format": "date",
+                        "description": "End date for filtering conversations",
+                        "name": "end_date",
+                        "in": "query"
+                    },
+                    {
                         "type": "integer",
                         "default": 1,
                         "description": "Page number",
@@ -617,6 +637,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "provider": {
+                    "type": "string"
+                },
+                "source_id": {
                     "type": "string"
                 },
                 "title": {

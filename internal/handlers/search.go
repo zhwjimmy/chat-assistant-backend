@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"strconv"
+	"time"
 
 	"chat-assistant-backend/internal/response"
 	"chat-assistant-backend/internal/services"
@@ -30,6 +31,9 @@ func NewSearchHandler(searchService *services.SearchService) *SearchHandler {
 // @Produce json
 // @Param q query string true "Search query"
 // @Param user_id query string false "User ID" Format(uuid)
+// @Param provider_id query string false "Provider ID (e.g., openai, gemini, claude)"
+// @Param start_date query string false "Start date for filtering conversations" Format(date)
+// @Param end_date query string false "End date for filtering conversations" Format(date)
 // @Param page query int false "Page number" default(1)
 // @Param limit query int false "Items per page" default(10)
 // @Success 200 {object} response.PaginatedResponse{data=response.SearchResponse} "Search results"
@@ -55,6 +59,34 @@ func (h *SearchHandler) Search(c *gin.Context) {
 		}
 	}
 
+	// Parse provider ID (optional)
+	var providerID *string
+	if providerIDStr := c.Query("provider_id"); providerIDStr != "" {
+		providerID = &providerIDStr
+	}
+
+	// Parse date range (optional)
+	var startDate, endDate *time.Time
+	if startDateStr := c.Query("start_date"); startDateStr != "" {
+		if parsed, err := time.Parse("2006-01-02", startDateStr); err == nil {
+			startDate = &parsed
+		} else {
+			response.BadRequest(c, "INVALID_DATE", "Invalid start date format", "Start date must be in YYYY-MM-DD format")
+			return
+		}
+	}
+
+	if endDateStr := c.Query("end_date"); endDateStr != "" {
+		if parsed, err := time.Parse("2006-01-02", endDateStr); err == nil {
+			// 设置结束日期为当天的23:59:59
+			endOfDay := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+			endDate = &endOfDay
+		} else {
+			response.BadRequest(c, "INVALID_DATE", "Invalid end date format", "End date must be in YYYY-MM-DD format")
+			return
+		}
+	}
+
 	// Parse pagination parameters
 	page := 1
 	limit := 10
@@ -72,7 +104,7 @@ func (h *SearchHandler) Search(c *gin.Context) {
 	}
 
 	// Perform search with matched messages
-	searchResponse, total, err := h.searchService.SearchWithMatchedMessages(query, userID, page, limit)
+	searchResponse, total, err := h.searchService.SearchWithMatchedMessages(query, userID, providerID, startDate, endDate, page, limit)
 	if err != nil {
 		response.InternalServerError(c, "INTERNAL_ERROR", "Internal server error", "Failed to perform search")
 		return

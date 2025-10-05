@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"chat-assistant-backend/internal/models"
 
@@ -28,27 +29,10 @@ func NewElasticsearchRepository(esClient *es.Client, indexName string) *Elastics
 	}
 }
 
-// SearchConversationsWithMessages searches conversations using Elasticsearch
-func (r *ElasticsearchRepository) SearchConversationsWithMessages(query string, userID *uuid.UUID, page, limit int) ([]*models.Conversation, int64, error) {
-	// 1. 在 ES 中搜索
-	esDocs, total, err := r.searchConversationDocuments(query, userID, page, limit)
-	if err != nil {
-		return nil, 0, err
-	}
-
-	// 2. 转换为 PostgreSQL 模型
-	conversations := make([]*models.Conversation, len(esDocs))
-	for i, doc := range esDocs {
-		conversations[i] = doc.ToConversation()
-	}
-
-	return conversations, total, nil
-}
-
 // SearchConversationsWithMatchedMessages searches conversations and returns matched messages
-func (r *ElasticsearchRepository) SearchConversationsWithMatchedMessages(query string, userID *uuid.UUID, page, limit int) ([]*models.ConversationDocument, map[uuid.UUID][]*models.MessageDocument, map[uuid.UUID][]string, int64, error) {
+func (r *ElasticsearchRepository) SearchConversationsWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) ([]*models.ConversationDocument, map[uuid.UUID][]*models.MessageDocument, map[uuid.UUID][]string, int64, error) {
 	// 1. 在 ES 中搜索
-	esDocs, highlights, total, err := r.searchConversationDocumentsWithHighlights(query, userID, page, limit)
+	esDocs, highlights, total, err := r.searchConversationDocumentsWithHighlights(query, userID, providerID, startDate, endDate, page, limit)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
@@ -145,41 +129,8 @@ func (r *ElasticsearchRepository) SearchConversationsWithMatchedMessages(query s
 	return esDocs, matchedMessagesMap, matchedFieldsMap, total, nil
 }
 
-// searchConversationDocuments 在 ES 中搜索 conversation 文档
-func (r *ElasticsearchRepository) searchConversationDocuments(query string, userID *uuid.UUID, page, limit int) ([]*models.ConversationDocument, int64, error) {
-	ctx := context.Background()
-
-	// 构建 ES 查询
-	searchQuery := r.buildSearchQuery(query, userID, page, limit)
-
-	// 执行搜索
-	req := esapi.SearchRequest{
-		Index: []string{r.indexName},
-		Body:  bytes.NewReader(searchQuery),
-	}
-
-	res, err := req.Do(ctx, r.esClient)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to execute search: %w", err)
-	}
-	defer res.Body.Close()
-
-	if res.IsError() {
-		return nil, 0, fmt.Errorf("search request failed with status: %s", res.Status())
-	}
-
-	// 解析响应
-	var searchResponse map[string]interface{}
-	if err := json.NewDecoder(res.Body).Decode(&searchResponse); err != nil {
-		return nil, 0, fmt.Errorf("failed to decode search response: %w", err)
-	}
-
-	// 提取结果
-	return r.parseSearchResponse(searchResponse)
-}
-
 // buildSearchQuery 构建 ES 搜索查询
-func (r *ElasticsearchRepository) buildSearchQuery(query string, userID *uuid.UUID, page, limit int) []byte {
+func (r *ElasticsearchRepository) buildSearchQuery(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) []byte {
 	// 计算偏移量
 	offset := (page - 1) * limit
 
@@ -191,6 +142,31 @@ func (r *ElasticsearchRepository) buildSearchQuery(query string, userID *uuid.UU
 		mustQueries = append(mustQueries, map[string]interface{}{
 			"term": map[string]interface{}{
 				"user_id": userID.String(),
+			},
+		})
+	}
+
+	// Provider过滤
+	if providerID != nil {
+		mustQueries = append(mustQueries, map[string]interface{}{
+			"term": map[string]interface{}{
+				"provider": *providerID,
+			},
+		})
+	}
+
+	// 日期范围过滤
+	if startDate != nil || endDate != nil {
+		dateRange := map[string]interface{}{}
+		if startDate != nil {
+			dateRange["gte"] = startDate.Format("2006-01-02T15:04:05Z07:00")
+		}
+		if endDate != nil {
+			dateRange["lte"] = endDate.Format("2006-01-02T15:04:05Z07:00")
+		}
+		mustQueries = append(mustQueries, map[string]interface{}{
+			"range": map[string]interface{}{
+				"created_at": dateRange,
 			},
 		})
 	}
@@ -336,11 +312,11 @@ func (r *ElasticsearchRepository) parseSearchResponse(response map[string]interf
 }
 
 // searchConversationDocumentsWithHighlights 在 ES 中搜索 conversation 文档并返回高亮信息
-func (r *ElasticsearchRepository) searchConversationDocumentsWithHighlights(query string, userID *uuid.UUID, page, limit int) ([]*models.ConversationDocument, []map[string]interface{}, int64, error) {
+func (r *ElasticsearchRepository) searchConversationDocumentsWithHighlights(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) ([]*models.ConversationDocument, []map[string]interface{}, int64, error) {
 	ctx := context.Background()
 
 	// 构建 ES 查询
-	searchQuery := r.buildSearchQuery(query, userID, page, limit)
+	searchQuery := r.buildSearchQuery(query, userID, providerID, startDate, endDate, page, limit)
 
 	// 执行搜索
 	req := esapi.SearchRequest{
