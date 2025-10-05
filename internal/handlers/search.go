@@ -33,6 +33,7 @@ func NewSearchHandler(searchService services.SearchService) *SearchHandler {
 // @Param q query string true "Search query"
 // @Param user_id query string false "User ID" Format(uuid)
 // @Param provider_id query string false "Provider ID (e.g., openai, gemini, claude)"
+// @Param tag_id query string false "Tag ID for filtering conversations" Format(uuid)
 // @Param start_date query string false "Start date for filtering conversations" Format(date)
 // @Param end_date query string false "End date for filtering conversations" Format(date)
 // @Param page query int false "Page number" default(1)
@@ -64,6 +65,17 @@ func (h *SearchHandler) Search(c *gin.Context) {
 	var providerID *string
 	if providerIDStr := c.Query("provider_id"); providerIDStr != "" {
 		providerID = &providerIDStr
+	}
+
+	// Parse tag ID (optional)
+	var tagID *uuid.UUID
+	if tagIDStr := c.Query("tag_id"); tagIDStr != "" {
+		if parsed, err := uuid.Parse(tagIDStr); err == nil {
+			tagID = &parsed
+		} else {
+			response.BadRequest(c, "INVALID_UUID", "Invalid tag ID format", "Tag ID must be a valid UUID")
+			return
+		}
 	}
 
 	// Parse date range (optional)
@@ -105,7 +117,7 @@ func (h *SearchHandler) Search(c *gin.Context) {
 	}
 
 	// Perform search with matched messages
-	searchResponse, total, err := h.searchService.SearchWithMatchedMessages(query, userID, providerID, startDate, endDate, page, limit)
+	searchResponse, total, err := h.searchService.SearchWithMatchedMessages(query, userID, providerID, tagID, startDate, endDate, page, limit)
 	if err != nil {
 		response.InternalServerError(c, "INTERNAL_ERROR", "Internal server error", fmt.Sprintf("Failed to perform search: %v", err))
 		return

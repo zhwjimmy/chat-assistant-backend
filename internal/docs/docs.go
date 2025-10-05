@@ -603,6 +603,13 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
+                        "format": "uuid",
+                        "description": "Tag ID for filtering conversations",
+                        "name": "tag_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
                         "format": "date",
                         "description": "Start date for filtering conversations",
                         "name": "start_date",

@@ -17,7 +17,7 @@ import (
 
 // SearchRepository defines the interface for search repository
 type SearchRepository interface {
-	SearchConversationsWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) ([]*models.ConversationDocument, map[uuid.UUID][]*models.MessageDocument, map[uuid.UUID][]string, int64, error)
+	SearchConversationsWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, tagID *uuid.UUID, startDate, endDate *time.Time, page, limit int) ([]*models.ConversationDocument, map[uuid.UUID][]*models.MessageDocument, map[uuid.UUID][]string, int64, error)
 }
 
 // ElasticsearchRepositoryImpl handles Elasticsearch search operations
@@ -35,9 +35,9 @@ func NewElasticsearchRepository(esClient *es.Client, indexName string) SearchRep
 }
 
 // SearchConversationsWithMatchedMessages searches conversations and returns matched messages
-func (r *ElasticsearchRepositoryImpl) SearchConversationsWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) ([]*models.ConversationDocument, map[uuid.UUID][]*models.MessageDocument, map[uuid.UUID][]string, int64, error) {
+func (r *ElasticsearchRepositoryImpl) SearchConversationsWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, tagID *uuid.UUID, startDate, endDate *time.Time, page, limit int) ([]*models.ConversationDocument, map[uuid.UUID][]*models.MessageDocument, map[uuid.UUID][]string, int64, error) {
 	// 1. 在 ES 中搜索
-	esDocs, highlights, total, err := r.searchConversationDocumentsWithHighlights(query, userID, providerID, startDate, endDate, page, limit)
+	esDocs, highlights, total, err := r.searchConversationDocumentsWithHighlights(query, userID, providerID, tagID, startDate, endDate, page, limit)
 	if err != nil {
 		return nil, nil, nil, 0, err
 	}
@@ -141,7 +141,7 @@ func (r *ElasticsearchRepositoryImpl) SearchConversationsWithMatchedMessages(que
 }
 
 // buildSearchQuery 构建 ES 搜索查询
-func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) []byte {
+func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uuid.UUID, providerID *string, tagID *uuid.UUID, startDate, endDate *time.Time, page, limit int) []byte {
 	// 预处理查询词，确保精确匹配
 	query = strings.TrimSpace(query)
 	// 计算偏移量
@@ -164,6 +164,20 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 		mustQueries = append(mustQueries, map[string]interface{}{
 			"term": map[string]interface{}{
 				"provider": *providerID,
+			},
+		})
+	}
+
+	// Tag ID过滤 - 使用嵌套查询确保完全匹配
+	if tagID != nil {
+		mustQueries = append(mustQueries, map[string]interface{}{
+			"nested": map[string]interface{}{
+				"path": "tags",
+				"query": map[string]interface{}{
+					"term": map[string]interface{}{
+						"tags.id": tagID.String(),
+					},
+				},
 			},
 		})
 	}
@@ -424,11 +438,11 @@ func (r *ElasticsearchRepositoryImpl) parseSearchResponse(response map[string]in
 }
 
 // searchConversationDocumentsWithHighlights 在 ES 中搜索 conversation 文档并返回高亮信息
-func (r *ElasticsearchRepositoryImpl) searchConversationDocumentsWithHighlights(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) ([]*models.ConversationDocument, []map[string]interface{}, int64, error) {
+func (r *ElasticsearchRepositoryImpl) searchConversationDocumentsWithHighlights(query string, userID *uuid.UUID, providerID *string, tagID *uuid.UUID, startDate, endDate *time.Time, page, limit int) ([]*models.ConversationDocument, []map[string]interface{}, int64, error) {
 	ctx := context.Background()
 
 	// 构建 ES 查询
-	searchQuery := r.buildSearchQuery(query, userID, providerID, startDate, endDate, page, limit)
+	searchQuery := r.buildSearchQuery(query, userID, providerID, tagID, startDate, endDate, page, limit)
 
 	// 执行搜索
 	req := esapi.SearchRequest{

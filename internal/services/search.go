@@ -12,7 +12,7 @@ import (
 
 // SearchService defines the interface for search service
 type SearchService interface {
-	SearchWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) (*response.SearchResponse, int64, error)
+	SearchWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, tagID *uuid.UUID, startDate, endDate *time.Time, page, limit int) (*response.SearchResponse, int64, error)
 }
 
 // SearchServiceImpl handles search business logic
@@ -28,7 +28,7 @@ func NewSearchService(searchRepo repositories.SearchRepository) SearchService {
 }
 
 // SearchWithMatchedMessages performs a search and returns conversations with matched messages
-func (s *SearchServiceImpl) SearchWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) (*response.SearchResponse, int64, error) {
+func (s *SearchServiceImpl) SearchWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, tagID *uuid.UUID, startDate, endDate *time.Time, page, limit int) (*response.SearchResponse, int64, error) {
 	// Validate and clean query
 	query = strings.TrimSpace(query)
 	if query == "" {
@@ -36,7 +36,7 @@ func (s *SearchServiceImpl) SearchWithMatchedMessages(query string, userID *uuid
 	}
 
 	// Search conversations with matched messages and field information
-	conversationDocs, matchedMessagesMap, matchedFieldsMap, total, err := s.searchRepo.SearchConversationsWithMatchedMessages(query, userID, providerID, startDate, endDate, page, limit)
+	conversationDocs, matchedMessagesMap, matchedFieldsMap, total, err := s.searchRepo.SearchConversationsWithMatchedMessages(query, userID, providerID, tagID, startDate, endDate, page, limit)
 	if err != nil {
 		return nil, 0, err
 	}

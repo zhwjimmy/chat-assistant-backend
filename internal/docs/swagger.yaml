@@ -641,6 +641,11 @@ paths:
         in: query
         name: provider_id
         type: string
+      - description: Tag ID for filtering conversations
+        format: uuid
+        in: query
+        name: tag_id
+        type: string
       - description: Start date for filtering conversations
         format: date
         in: query
