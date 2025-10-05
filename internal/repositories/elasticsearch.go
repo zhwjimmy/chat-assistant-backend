@@ -63,6 +63,9 @@ func (r *ElasticsearchRepositoryImpl) SearchConversationsWithMatchedMessages(que
 		if _, exists := highlights[i]["messages.source_content"]; exists {
 			matchedFields = append(matchedFields, "messages.source_content")
 		}
+		if _, exists := highlights[i]["tags.name"]; exists {
+			matchedFields = append(matchedFields, "tags.name")
+		}
 
 		// 提取匹配的消息
 		_, hasContent := highlights[i]["messages.content"]
@@ -200,6 +203,19 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 				},
 			},
 		},
+		{
+			"nested": map[string]interface{}{
+				"path": "tags",
+				"query": map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":  query,
+						"fields": []string{"tags.name.exact^3"},
+						"type":   "phrase",
+						"slop":   0,
+					},
+				},
+			},
+		},
 		// 添加词级别的精确匹配作为备选
 		{
 			"multi_match": map[string]interface{}{
@@ -216,6 +232,19 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 					"multi_match": map[string]interface{}{
 						"query":    query,
 						"fields":   []string{"messages.content^2", "messages.source_content"},
+						"type":     "cross_fields",
+						"operator": "and", // 所有词都必须匹配
+					},
+				},
+			},
+		},
+		{
+			"nested": map[string]interface{}{
+				"path": "tags",
+				"query": map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":    query,
+						"fields":   []string{"tags.name^2"},
 						"type":     "cross_fields",
 						"operator": "and", // 所有词都必须匹配
 					},
@@ -253,6 +282,7 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 				"source_title":            map[string]interface{}{},
 				"messages.content":        map[string]interface{}{},
 				"messages.source_content": map[string]interface{}{},
+				"tags.name":               map[string]interface{}{},
 			},
 			"pre_tags":  []string{"<mark>"},
 			"post_tags": []string{"</mark>"},
@@ -410,6 +440,19 @@ func (r *ElasticsearchRepositoryImpl) parseDocument(source map[string]interface{
 		}
 	}
 
+	// 解析嵌套的 tags
+	if tags, ok := source["tags"].([]interface{}); ok {
+		doc.Tags = make([]models.TagDocument, 0, len(tags))
+		for _, tag := range tags {
+			if tagMap, ok := tag.(map[string]interface{}); ok {
+				tagDoc := models.TagDocument{}
+				if err := r.parseTagDocument(tagMap, &tagDoc); err == nil {
+					doc.Tags = append(doc.Tags, tagDoc)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -442,6 +485,35 @@ func (r *ElasticsearchRepositoryImpl) parseMessageDocument(source map[string]int
 
 	if sourceContent, ok := source["source_content"].(string); ok {
 		doc.SourceContent = sourceContent
+	}
+
+	// 解析时间字段
+	if createdAt, ok := source["created_at"].(string); ok {
+		if parsed, err := json.Marshal(createdAt); err == nil {
+			json.Unmarshal(parsed, &doc.CreatedAt)
+		}
+	}
+
+	if updatedAt, ok := source["updated_at"].(string); ok {
+		if parsed, err := json.Marshal(updatedAt); err == nil {
+			json.Unmarshal(parsed, &doc.UpdatedAt)
+		}
+	}
+
+	return nil
+}
+
+// parseTagDocument 解析标签文档
+func (r *ElasticsearchRepositoryImpl) parseTagDocument(source map[string]interface{}, doc *models.TagDocument) error {
+	// 解析标签字段
+	if id, ok := source["id"].(string); ok {
+		if parsed, err := uuid.Parse(id); err == nil {
+			doc.ID = parsed
+		}
+	}
+
+	if name, ok := source["name"].(string); ok {
+		doc.Name = name
 	}
 
 	// 解析时间字段

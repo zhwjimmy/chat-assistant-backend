@@ -170,6 +170,10 @@ definitions:
         type: string
       source_title:
         type: string
+      tags:
+        items:
+          $ref: '#/definitions/response.SearchTagResponse'
+        type: array
       title:
         type: string
       updated_at:
@@ -211,6 +215,22 @@ definitions:
         description: 搜索关键词，用于前端高亮
         type: string
     type: object
+  response.SearchTagResponse:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      matched_fields:
+        description: 匹配信息，用于前端高亮
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      updated_at:
+        type: string
+    type: object
   response.TagListResponse:
     properties:
       tags:
@@ -223,6 +243,8 @@ definitions:
       id:
         type: string
       name:
+        type: string
+      updated_at:
         type: string
     type: object
   response.UserResponse:

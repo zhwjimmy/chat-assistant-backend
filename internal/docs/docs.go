@@ -1277,6 +1277,12 @@ const docTemplate = `{
                 "source_title": {
                     "type": "string"
                 },
+                "tags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/response.SearchTagResponse"
+                    }
+                },
                 "title": {
                     "type": "string"
                 },
@@ -1339,6 +1345,30 @@ const docTemplate = `{
                 }
             }
         },
+        "response.SearchTagResponse": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "matched_fields": {
+                    "description": "匹配信息，用于前端高亮",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "response.TagListResponse": {
             "type": "object",
             "properties": {
@@ -1357,6 +1387,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "updated_at": {
                     "type": "string"
                 }
             }

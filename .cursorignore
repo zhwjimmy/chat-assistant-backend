@@ -26,7 +26,6 @@ node_modules/
 wire_gen.go
 
 # Swagger generated files
-/docs/
 /swagger/
 
 # Logs

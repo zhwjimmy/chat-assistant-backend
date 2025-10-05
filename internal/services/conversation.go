@@ -2,10 +2,12 @@ package services
 
 import (
 	"chat-assistant-backend/internal/errors"
+	"chat-assistant-backend/internal/logger"
 	"chat-assistant-backend/internal/models"
 	"chat-assistant-backend/internal/repositories"
 
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 // ConversationService defines the interface for conversation service
@@ -21,13 +23,15 @@ type ConversationService interface {
 type ConversationServiceImpl struct {
 	conversationRepo repositories.ConversationRepository
 	tagRepo          repositories.TagRepository
+	indexer          repositories.ElasticsearchIndexer
 }
 
 // NewConversationService creates a new conversation service
-func NewConversationService(conversationRepo repositories.ConversationRepository, tagRepo repositories.TagRepository) ConversationService {
+func NewConversationService(conversationRepo repositories.ConversationRepository, tagRepo repositories.TagRepository, indexer repositories.ElasticsearchIndexer) ConversationService {
 	return &ConversationServiceImpl{
 		conversationRepo: conversationRepo,
 		tagRepo:          tagRepo,
+		indexer:          indexer,
 	}
 }
 
@@ -67,8 +71,22 @@ func (s *ConversationServiceImpl) DeleteConversation(id uuid.UUID) error {
 		return errors.ErrConversationNotFound
 	}
 
-	// Delete the conversation
-	return s.conversationRepo.Delete(id)
+	// Delete the conversation from PostgreSQL
+	if err := s.conversationRepo.Delete(id); err != nil {
+		return err
+	}
+
+	// Delete the conversation from Elasticsearch
+	if err := s.indexer.DeleteConversation(id); err != nil {
+		// Log the error but don't fail the operation
+		// ES is used for search, so we can tolerate temporary inconsistency
+		logger.GetLogger().Error("Failed to delete conversation from Elasticsearch",
+			zap.String("conversation_id", id.String()),
+			zap.Error(err),
+		)
+	}
+
+	return nil
 }
 
 // CreateConversationWithTags creates a new conversation with tags
@@ -99,7 +117,22 @@ func (s *ConversationServiceImpl) CreateConversationWithTags(conversation *model
 	}
 
 	// 重新获取对话以包含标签
-	return s.conversationRepo.GetByID(conversation.ID)
+	createdConversation, err := s.conversationRepo.GetByID(conversation.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 索引到 Elasticsearch
+	if err := s.indexer.IndexConversation(createdConversation.ToESDocument()); err != nil {
+		// Log the error but don't fail the operation
+		// ES is used for search, so we can tolerate temporary inconsistency
+		logger.GetLogger().Error("Failed to index conversation to Elasticsearch",
+			zap.String("conversation_id", conversation.ID.String()),
+			zap.Error(err),
+		)
+	}
+
+	return createdConversation, nil
 }
 
 // UpdateConversationTags updates tags for a conversation
@@ -129,5 +162,25 @@ func (s *ConversationServiceImpl) UpdateConversationTags(conversationID uuid.UUI
 	}
 
 	// 更新标签关系
-	return s.conversationRepo.ReplaceTags(conversationID, tagIDs)
+	if err := s.conversationRepo.ReplaceTags(conversationID, tagIDs); err != nil {
+		return err
+	}
+
+	// 重新获取对话以包含更新后的标签
+	updatedConversation, err := s.conversationRepo.GetByID(conversationID)
+	if err != nil {
+		return err
+	}
+
+	// 更新 Elasticsearch 中的对话文档
+	if err := s.indexer.UpdateConversation(updatedConversation.ToESDocument()); err != nil {
+		// Log the error but don't fail the operation
+		// ES is used for search, so we can tolerate temporary inconsistency
+		logger.GetLogger().Error("Failed to update conversation in Elasticsearch",
+			zap.String("conversation_id", conversationID.String()),
+			zap.Error(err),
+		)
+	}
+
+	return nil
 }

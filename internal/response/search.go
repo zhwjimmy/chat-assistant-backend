@@ -20,17 +20,28 @@ type SearchMessageResponse struct {
 	MatchedFields []string `json:"matched_fields,omitempty"` // 匹配的字段名
 }
 
+// SearchTagResponse represents a tag in search results with highlighting
+type SearchTagResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt string    `json:"created_at"`
+	UpdatedAt string    `json:"updated_at"`
+	// 匹配信息，用于前端高亮
+	MatchedFields []string `json:"matched_fields,omitempty"` // 匹配的字段名
+}
+
 // SearchConversationResponse represents a conversation in search results with matched messages
 type SearchConversationResponse struct {
-	ID          uuid.UUID `json:"id"`
-	UserID      uuid.UUID `json:"user_id"`
-	Title       string    `json:"title"`
-	Provider    string    `json:"provider"`
-	Model       string    `json:"model"`
-	SourceID    string    `json:"source_id,omitempty"`
-	SourceTitle string    `json:"source_title,omitempty"`
-	CreatedAt   string    `json:"created_at"`
-	UpdatedAt   string    `json:"updated_at"`
+	ID          uuid.UUID           `json:"id"`
+	UserID      uuid.UUID           `json:"user_id"`
+	Title       string              `json:"title"`
+	Provider    string              `json:"provider"`
+	Model       string              `json:"model"`
+	SourceID    string              `json:"source_id,omitempty"`
+	SourceTitle string              `json:"source_title,omitempty"`
+	Tags        []SearchTagResponse `json:"tags"`
+	CreatedAt   string              `json:"created_at"`
+	UpdatedAt   string              `json:"updated_at"`
 	// 匹配的消息列表（如果 conversation 匹配但消息不匹配，则为空；最多返回3条消息）
 	Messages []SearchMessageResponse `json:"messages"`
 	// 匹配信息，用于前端高亮
@@ -63,6 +74,17 @@ func NewSearchMessageResponse(messageDoc *models.MessageDocument, matchedFields 
 	}
 }
 
+// NewSearchTagResponse creates a SearchTagResponse from models.TagDocument
+func NewSearchTagResponse(tagDoc *models.TagDocument, matchedFields []string) *SearchTagResponse {
+	return &SearchTagResponse{
+		ID:            tagDoc.ID,
+		Name:          tagDoc.Name,
+		CreatedAt:     tagDoc.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:     tagDoc.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		MatchedFields: matchedFields,
+	}
+}
+
 // NewSearchConversationResponse creates a SearchConversationResponse from models.ConversationDocument
 func NewSearchConversationResponse(conversationDoc *models.ConversationDocument, matchedMessages []*models.MessageDocument, matchedFields []string) *SearchConversationResponse {
 	title := conversationDoc.Title
@@ -83,6 +105,22 @@ func NewSearchConversationResponse(conversationDoc *models.ConversationDocument,
 		messageResponses[i] = *NewSearchMessageResponse(msgDoc, messageMatchedFields)
 	}
 
+	// 转换 Tags
+	var tags []SearchTagResponse
+	if conversationDoc.Tags != nil {
+		tags = make([]SearchTagResponse, len(conversationDoc.Tags))
+		for i, tagDoc := range conversationDoc.Tags {
+			// 为标签添加匹配字段信息
+			tagMatchedFields := []string{}
+			for _, field := range matchedFields {
+				if field == "tags.name" {
+					tagMatchedFields = append(tagMatchedFields, "name")
+				}
+			}
+			tags[i] = *NewSearchTagResponse(&tagDoc, tagMatchedFields)
+		}
+	}
+
 	return &SearchConversationResponse{
 		ID:            conversationDoc.ID,
 		UserID:        conversationDoc.UserID,
@@ -91,6 +129,7 @@ func NewSearchConversationResponse(conversationDoc *models.ConversationDocument,
 		Model:         conversationDoc.Model,
 		SourceID:      conversationDoc.SourceID,
 		SourceTitle:   conversationDoc.SourceTitle,
+		Tags:          tags,
 		CreatedAt:     conversationDoc.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt:     conversationDoc.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		Messages:      messageResponses,

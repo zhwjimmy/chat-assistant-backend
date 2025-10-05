@@ -7,15 +7,17 @@ import (
 )
 
 type TagResponse struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	UpdatedAt string    `json:"updated_at"`
 }
 
 // NewTagResponse creates a TagResponse from models.Tag
 func NewTagResponse(tag *models.Tag) *TagResponse {
 	return &TagResponse{
-		ID:   tag.Base.ID,
-		Name: tag.Name,
+		ID:        tag.Base.ID,
+		Name:      tag.Name,
+		UpdatedAt: tag.Base.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 

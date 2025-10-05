@@ -331,7 +331,18 @@ func (i *ElasticsearchIndexerImpl) BulkIndexConversations(docs []*models.Convers
 func (i *ElasticsearchIndexerImpl) UpdateConversation(doc *models.ConversationDocument) error {
 	ctx := context.Background()
 
-	// 构建更新文档，排除 messages 字段
+	// 首先检查文档是否存在
+	exists, err := i.ConversationExists(doc.ID)
+	if err != nil {
+		return fmt.Errorf("failed to check conversation existence: %w", err)
+	}
+
+	if !exists {
+		// 如果文档不存在，则创建它
+		return i.IndexConversation(doc)
+	}
+
+	// 构建更新文档，包含 tags 字段但不包含 messages 字段
 	updateDoc := map[string]interface{}{
 		"id":           doc.ID,
 		"user_id":      doc.UserID,
@@ -342,9 +353,15 @@ func (i *ElasticsearchIndexerImpl) UpdateConversation(doc *models.ConversationDo
 		"source_title": doc.SourceTitle,
 		"created_at":   doc.CreatedAt,
 		"updated_at":   doc.UpdatedAt,
+		"tags":         doc.Tags,
 	}
 
-	updateBytes, err := json.Marshal(updateDoc)
+	// ES 更新请求需要使用 doc 包装器
+	updateBody := map[string]interface{}{
+		"doc": updateDoc,
+	}
+
+	updateBytes, err := json.Marshal(updateBody)
 	if err != nil {
 		return fmt.Errorf("failed to marshal update document: %w", err)
 	}

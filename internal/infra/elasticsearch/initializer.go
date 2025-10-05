@@ -226,6 +226,33 @@ func ConversationMapping() string {
 							"type": "date"
 						}
 					}
+				},
+				"tags": {
+					"type": "nested",
+					"properties": {
+						"id": {
+							"type": "keyword"
+						},
+						"name": {
+							"type": "text",
+							"analyzer": "standard",
+							"fields": {
+								"keyword": {
+									"type": "keyword"
+								},
+								"exact": {
+									"type": "text",
+									"analyzer": "keyword"
+								}
+							}
+						},
+						"created_at": {
+							"type": "date"
+						},
+						"updated_at": {
+							"type": "date"
+						}
+					}
 				}
 			}
 		},
