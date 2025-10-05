@@ -47,15 +47,15 @@ func main() {
 	)
 
 	// Initialize application with Wire dependency injection
-	server, err := InitializeApp()
+	app, err := InitializeApp()
 	if err != nil {
 		log.Fatal("Failed to initialize application", zap.Error(err))
 	}
 
-	// Start server
+	// Start application
 	go func() {
-		if err := server.Start(); err != nil {
-			log.Error("Failed to start server", zap.Error(err))
+		if err := app.Start(); err != nil {
+			log.Error("Failed to start application", zap.Error(err))
 			os.Exit(1)
 		}
 	}()
@@ -65,17 +65,17 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Info("Shutting down server...")
+	log.Info("Shutting down application...")
 
 	// Create shutdown context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), cfg.Shutdown.Timeout)
 	defer cancel()
 
 	// Attempt graceful shutdown
-	if err := server.Stop(ctx); err != nil {
-		log.Error("Server forced to shutdown", zap.Error(err))
+	if err := app.Stop(ctx); err != nil {
+		log.Error("Application forced to shutdown", zap.Error(err))
 		os.Exit(1)
 	}
 
-	log.Info("Server exited")
+	log.Info("Application exited")
 }

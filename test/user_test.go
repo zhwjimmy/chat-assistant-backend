@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockUserRepository is a mock implementation of repositories.UserRepositoryInterface
+// MockUserRepository is a mock implementation of repositories.UserRepository
 type MockUserRepository struct {
 	mock.Mock
 }
@@ -27,11 +27,11 @@ func (m *MockUserRepository) GetByID(id uuid.UUID) (*models.User, error) {
 
 // TestUserService is a test version of UserService that accepts interface
 type TestUserService struct {
-	userRepo repositories.UserRepositoryInterface
+	userRepo repositories.UserRepository
 }
 
 // NewTestUserService creates a test user service with interface
-func NewTestUserService(userRepo repositories.UserRepositoryInterface) *TestUserService {
+func NewTestUserService(userRepo repositories.UserRepository) *TestUserService {
 	return &TestUserService{
 		userRepo: userRepo,
 	}

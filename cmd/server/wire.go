@@ -4,19 +4,19 @@
 package main
 
 import (
+	"chat-assistant-backend/internal/app"
 	"chat-assistant-backend/internal/config"
 	"chat-assistant-backend/internal/handlers"
 	"chat-assistant-backend/internal/infra/database"
 	"chat-assistant-backend/internal/infra/elasticsearch"
 	"chat-assistant-backend/internal/repositories"
-	"chat-assistant-backend/internal/server"
 	"chat-assistant-backend/internal/services"
 
 	"github.com/google/wire"
 )
 
 // InitializeApp initializes the application with all dependencies
-func InitializeApp() (*server.Server, error) {
+func InitializeApp() (*app.App, error) {
 	wire.Build(
 		// Config
 		config.Load,
@@ -34,8 +34,8 @@ func InitializeApp() (*server.Server, error) {
 		// Handlers
 		handlers.HandlerSet,
 
-		// Server with dependencies
-		server.New,
+		// App with dependencies (includes server.New internally)
+		app.New,
 	)
 	return nil, nil
 }

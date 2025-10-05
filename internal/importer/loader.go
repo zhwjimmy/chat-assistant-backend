@@ -16,8 +16,8 @@ import (
 type Loader struct {
 	config           *config.Config
 	db               *gorm.DB
-	conversationRepo *repositories.ConversationRepository
-	messageRepo      *repositories.MessageRepository
+	conversationRepo repositories.ConversationRepository
+	messageRepo      repositories.MessageRepository
 }
 
 // NewLoader 创建加载器
@@ -28,7 +28,7 @@ func NewLoader(cfg *config.Config) *Loader {
 }
 
 // SetDependencies 设置依赖（用于依赖注入）
-func (l *Loader) SetDependencies(db *gorm.DB, conversationRepo *repositories.ConversationRepository, messageRepo *repositories.MessageRepository) {
+func (l *Loader) SetDependencies(db *gorm.DB, conversationRepo repositories.ConversationRepository, messageRepo repositories.MessageRepository) {
 	l.db = db
 	l.conversationRepo = conversationRepo
 	l.messageRepo = messageRepo
