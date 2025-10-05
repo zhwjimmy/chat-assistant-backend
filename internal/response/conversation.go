@@ -8,14 +8,15 @@ import (
 
 // ConversationResponse represents a conversation in API response
 type ConversationResponse struct {
-	ID        uuid.UUID `json:"id"`
-	UserID    uuid.UUID `json:"user_id"`
-	Title     string    `json:"title"`
-	Provider  string    `json:"provider"`
-	Model     string    `json:"model"`
-	SourceID  string    `json:"source_id"`
-	CreatedAt string    `json:"created_at"`
-	UpdatedAt string    `json:"updated_at"`
+	ID        uuid.UUID     `json:"id"`
+	UserID    uuid.UUID     `json:"user_id"`
+	Title     string        `json:"title"`
+	Provider  string        `json:"provider"`
+	Model     string        `json:"model"`
+	SourceID  string        `json:"source_id"`
+	Tags      []TagResponse `json:"tags"`
+	CreatedAt string        `json:"created_at"`
+	UpdatedAt string        `json:"updated_at"`
 }
 
 // ConversationListResponse represents a list of conversations in API response
@@ -30,6 +31,15 @@ func NewConversationResponse(conversation *models.Conversation) *ConversationRes
 		title = conversation.SourceTitle
 	}
 
+	// 转换 Tags
+	var tags []TagResponse
+	if conversation.Tags != nil {
+		tags = make([]TagResponse, len(conversation.Tags))
+		for i, tag := range conversation.Tags {
+			tags[i] = *NewTagResponse(&tag)
+		}
+	}
+
 	return &ConversationResponse{
 		ID:        conversation.Base.ID,
 		UserID:    conversation.UserID,
@@ -37,6 +47,7 @@ func NewConversationResponse(conversation *models.Conversation) *ConversationRes
 		Provider:  conversation.Provider,
 		Model:     conversation.Model,
 		SourceID:  conversation.SourceID,
+		Tags:      tags,
 		CreatedAt: conversation.Base.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		UpdatedAt: conversation.Base.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

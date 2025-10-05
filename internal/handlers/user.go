@@ -11,11 +11,11 @@ import (
 
 // UserHandler handles user-related HTTP requests
 type UserHandler struct {
-	userService *services.UserService
+	userService services.UserService
 }
 
 // NewUserHandler creates a new user handler
-func NewUserHandler(userService *services.UserService) *UserHandler {
+func NewUserHandler(userService services.UserService) *UserHandler {
 	return &UserHandler{
 		userService: userService,
 	}

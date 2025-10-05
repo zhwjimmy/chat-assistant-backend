@@ -7,25 +7,25 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserRepositoryInterface defines the interface for user repository
-type UserRepositoryInterface interface {
+// UserRepository defines the interface for user repository
+type UserRepository interface {
 	GetByID(id uuid.UUID) (*models.User, error)
 }
 
-// UserRepository handles user data access
-type UserRepository struct {
+// UserRepositoryImpl handles user data access
+type UserRepositoryImpl struct {
 	db *gorm.DB
 }
 
 // NewUserRepository creates a new user repository
-func NewUserRepository(db *gorm.DB) *UserRepository {
-	return &UserRepository{
+func NewUserRepository(db *gorm.DB) UserRepository {
+	return &UserRepositoryImpl{
 		db: db,
 	}
 }
 
 // GetByID retrieves a user by ID
-func (r *UserRepository) GetByID(id uuid.UUID) (*models.User, error) {
+func (r *UserRepositoryImpl) GetByID(id uuid.UUID) (*models.User, error) {
 	var user models.User
 	err := r.db.Where("id = ?", id).First(&user).Error
 	if err != nil {

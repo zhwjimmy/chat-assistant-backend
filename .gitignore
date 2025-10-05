@@ -84,7 +84,8 @@ temp/
 
 # Generated files
 # Wire generated files (keep wire.go, ignore wire_gen.go)
-# wire_gen.go
+wire_gen.go
+**/wire_gen.go
 
 # Swagger generated files
 # /docs/  # Commented out to allow project documentation

@@ -8,20 +8,28 @@ import (
 	"github.com/google/uuid"
 )
 
-// MessageService handles message business logic
-type MessageService struct {
-	messageRepo *repositories.MessageRepository
+// MessageService defines the interface for message service
+type MessageService interface {
+	GetMessageByID(id uuid.UUID) (*models.Message, error)
+	GetMessagesByConversationID(conversationID uuid.UUID, page, limit int) ([]*models.Message, int64, error)
+	GetAllMessages(page, limit int) ([]*models.Message, int64, error)
+	DeleteMessage(id uuid.UUID) error
+}
+
+// MessageServiceImpl handles message business logic
+type MessageServiceImpl struct {
+	messageRepo repositories.MessageRepository
 }
 
 // NewMessageService creates a new message service
-func NewMessageService(messageRepo *repositories.MessageRepository) *MessageService {
-	return &MessageService{
+func NewMessageService(messageRepo repositories.MessageRepository) MessageService {
+	return &MessageServiceImpl{
 		messageRepo: messageRepo,
 	}
 }
 
 // GetMessageByID retrieves a message by ID
-func (s *MessageService) GetMessageByID(id uuid.UUID) (*models.Message, error) {
+func (s *MessageServiceImpl) GetMessageByID(id uuid.UUID) (*models.Message, error) {
 	message, err := s.messageRepo.GetByID(id)
 	if err != nil {
 		return nil, err
@@ -35,7 +43,7 @@ func (s *MessageService) GetMessageByID(id uuid.UUID) (*models.Message, error) {
 }
 
 // GetMessagesByConversationID retrieves messages by conversation ID with pagination
-func (s *MessageService) GetMessagesByConversationID(conversationID uuid.UUID, page, limit int) ([]*models.Message, int64, error) {
+func (s *MessageServiceImpl) GetMessagesByConversationID(conversationID uuid.UUID, page, limit int) ([]*models.Message, int64, error) {
 	messages, total, err := s.messageRepo.GetByConversationID(conversationID, page, limit)
 	if err != nil {
 		return nil, 0, err
@@ -45,7 +53,7 @@ func (s *MessageService) GetMessagesByConversationID(conversationID uuid.UUID, p
 }
 
 // GetAllMessages retrieves all messages with pagination
-func (s *MessageService) GetAllMessages(page, limit int) ([]*models.Message, int64, error) {
+func (s *MessageServiceImpl) GetAllMessages(page, limit int) ([]*models.Message, int64, error) {
 	messages, total, err := s.messageRepo.GetAll(page, limit)
 	if err != nil {
 		return nil, 0, err
@@ -55,7 +63,7 @@ func (s *MessageService) GetAllMessages(page, limit int) ([]*models.Message, int
 }
 
 // DeleteMessage deletes a message by ID
-func (s *MessageService) DeleteMessage(id uuid.UUID) error {
+func (s *MessageServiceImpl) DeleteMessage(id uuid.UUID) error {
 	// First check if message exists
 	message, err := s.messageRepo.GetByID(id)
 	if err != nil {

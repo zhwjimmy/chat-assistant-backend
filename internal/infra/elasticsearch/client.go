@@ -7,6 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"chat-assistant-backend/internal/config"
+	"chat-assistant-backend/internal/repositories"
+
 	"github.com/elastic/go-elasticsearch/v8"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 )
@@ -277,4 +280,35 @@ func (h *HealthChecker) WaitForHealthy(ctx context.Context, timeout time.Duratio
 			}
 		}
 	}
+}
+
+// NewElasticsearchClientFromConfig creates a new Elasticsearch client from config
+func NewElasticsearchClientFromConfig(cfg *config.Config) (*Client, error) {
+	esConfig := &Config{
+		Hosts:    cfg.Elasticsearch.Hosts,
+		Username: cfg.Elasticsearch.Username,
+		Password: cfg.Elasticsearch.Password,
+		Timeout:  cfg.Elasticsearch.Timeout,
+		Index: IndexConfig{
+			Conversations: cfg.Elasticsearch.Index.Conversations,
+			Messages:      cfg.Elasticsearch.Index.Messages,
+		},
+	}
+
+	return NewClient(esConfig)
+}
+
+// NewElasticsearchIndexerFromClient creates a new Elasticsearch indexer from client
+func NewElasticsearchIndexerFromClient(esClient *Client, cfg *config.Config) repositories.ElasticsearchIndexer {
+	return repositories.NewElasticsearchIndexer(esClient.GetClient(), cfg.Elasticsearch.Index.Conversations)
+}
+
+// NewElasticsearchClient extracts the underlying Elasticsearch client
+func NewElasticsearchClient(client *Client) *elasticsearch.Client {
+	return client.GetClient()
+}
+
+// NewElasticsearchIndexName provides the conversations index name
+func NewElasticsearchIndexName(cfg *config.Config) string {
+	return cfg.Elasticsearch.Index.Conversations
 }

@@ -4,6 +4,8 @@ import (
 	"strconv"
 
 	"chat-assistant-backend/internal/errors"
+	"chat-assistant-backend/internal/models"
+	"chat-assistant-backend/internal/request"
 	"chat-assistant-backend/internal/response"
 	"chat-assistant-backend/internal/services"
 
@@ -13,11 +15,11 @@ import (
 
 // ConversationHandler handles conversation-related HTTP requests
 type ConversationHandler struct {
-	conversationService *services.ConversationService
+	conversationService services.ConversationService
 }
 
 // NewConversationHandler creates a new conversation handler
-func NewConversationHandler(conversationService *services.ConversationService) *ConversationHandler {
+func NewConversationHandler(conversationService services.ConversationService) *ConversationHandler {
 	return &ConversationHandler{
 		conversationService: conversationService,
 	}
@@ -161,4 +163,100 @@ func (h *ConversationHandler) DeleteConversation(c *gin.Context) {
 
 	// Return success response
 	response.Success(c, gin.H{"message": "Conversation deleted successfully"})
+}
+
+// CreateConversation handles POST /api/v1/conversations
+// @Summary Create Conversation
+// @Description Create a new conversation with tags
+// @Tags Conversations
+// @Accept json
+// @Produce json
+// @Param conversation body request.CreateConversationRequest true "Conversation data"
+// @Success 201 {object} response.Response{data=response.ConversationResponse} "Conversation created successfully"
+// @Failure 400 {object} response.Response "Bad request"
+// @Failure 500 {object} response.Response "Internal server error"
+// @Router /api/v1/conversations [post]
+func (h *ConversationHandler) CreateConversation(c *gin.Context) {
+	var req request.CreateConversationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_REQUEST", "Invalid request data", err.Error())
+		return
+	}
+
+	// 提取标签名称
+	var tagNames []string
+	for _, tag := range req.Tags {
+		tagNames = append(tagNames, tag.Name)
+	}
+
+	// 创建对话模型
+	conversation := &models.Conversation{
+		UserID:      req.UserID,
+		Title:       req.Title,
+		Provider:    req.Provider,
+		Model:       req.Model,
+		SourceID:    req.SourceID,
+		SourceTitle: req.SourceTitle,
+	}
+
+	// 创建对话和标签
+	createdConversation, err := h.conversationService.CreateConversationWithTags(conversation, tagNames)
+	if err != nil {
+		response.InternalServerError(c, "INTERNAL_ERROR", "Internal server error", "Failed to create conversation")
+		return
+	}
+
+	// Return success response
+	conversationResponse := response.NewConversationResponse(createdConversation)
+	response.Success(c, conversationResponse)
+}
+
+// UpdateConversationTags handles PUT /api/v1/conversations/{id}/tags
+// @Summary Update Conversation Tags
+// @Description Update tags for a specific conversation
+// @Tags Conversations
+// @Accept json
+// @Produce json
+// @Param id path string true "Conversation ID" Format(uuid)
+// @Param tags body request.UpdateConversationTagsRequest true "Tags data"
+// @Success 200 {object} response.Response "Tags updated successfully"
+// @Failure 400 {object} response.Response "Bad request"
+// @Failure 404 {object} response.Response "Conversation not found"
+// @Failure 500 {object} response.Response "Internal server error"
+// @Router /api/v1/conversations/{id}/tags [put]
+func (h *ConversationHandler) UpdateConversationTags(c *gin.Context) {
+	// Parse conversation ID from path parameter
+	conversationIDStr := c.Param("id")
+	conversationID, err := uuid.Parse(conversationIDStr)
+	if err != nil {
+		response.BadRequest(c, "INVALID_UUID", "Invalid conversation ID format", "Conversation ID must be a valid UUID")
+		return
+	}
+
+	var req request.UpdateConversationTagsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "INVALID_REQUEST", "Invalid request data", err.Error())
+		return
+	}
+
+	// 提取标签名称
+	var tagNames []string
+	for _, tag := range req.Tags {
+		tagNames = append(tagNames, tag.Name)
+	}
+
+	// 更新对话标签
+	err = h.conversationService.UpdateConversationTags(conversationID, tagNames)
+	if err != nil {
+		if err == errors.ErrConversationNotFound {
+			response.NotFound(c, "CONVERSATION_NOT_FOUND", "Conversation not found", "No conversation found with the specified ID")
+			return
+		}
+
+		response.InternalServerError(c, "INTERNAL_ERROR", "Internal server error", "Failed to update conversation tags")
+		return
+	}
+
+	// Return success response
+	response.Success(c, gin.H{"message": "Conversation tags updated successfully"})
 }

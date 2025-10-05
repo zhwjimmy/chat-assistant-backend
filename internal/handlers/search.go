@@ -13,11 +13,11 @@ import (
 
 // SearchHandler handles search-related HTTP requests
 type SearchHandler struct {
-	searchService *services.SearchService
+	searchService services.SearchService
 }
 
 // NewSearchHandler creates a new search handler
-func NewSearchHandler(searchService *services.SearchService) *SearchHandler {
+func NewSearchHandler(searchService services.SearchService) *SearchHandler {
 	return &SearchHandler{
 		searchService: searchService,
 	}

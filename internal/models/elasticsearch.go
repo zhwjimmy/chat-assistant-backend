@@ -17,12 +17,12 @@ type ConversationDocument struct {
 	Model       string    `json:"model"`
 	SourceID    string    `json:"source_id"`
 	SourceTitle string    `json:"source_title"`
-	TagIDs      []string  `json:"tag_ids"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 
-	// 嵌套的 Messages
+	// 嵌套的 Messages 和 Tags
 	Messages []MessageDocument `json:"messages,omitempty"`
+	Tags     []TagDocument     `json:"tags,omitempty"`
 }
 
 // MessageDocument 是 ES 中的消息文档
@@ -35,6 +35,14 @@ type MessageDocument struct {
 	SourceContent  string    `json:"source_content"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+// TagDocument 是 ES 中的标签文档
+type TagDocument struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // 转换方法：从 ES 文档提取 Conversation 模型
@@ -51,7 +59,6 @@ func (d *ConversationDocument) ToConversation() *Conversation {
 		Model:       d.Model,
 		SourceID:    d.SourceID,
 		SourceTitle: d.SourceTitle,
-		TagIDs:      d.TagIDs,
 	}
 }
 

@@ -325,7 +325,7 @@ gen-swagger:
 gen-wire:
 	@echo "Generating Wire dependency injection..."
 	@if command -v wire > /dev/null; then \
-		cd internal && wire; \
+		cd cmd/server && wire; \
 		echo "Wire files generated"; \
 	else \
 		echo "Wire not installed. Install with: go install github.com/google/wire/cmd/wire@latest"; \

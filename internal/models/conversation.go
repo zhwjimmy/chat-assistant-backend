@@ -11,8 +11,8 @@ type Conversation struct {
 	Model       string    `gorm:"type:varchar(50)" json:"model"`                     // gpt-4, gemini-pro, llama-3 等
 	SourceID    string    `gorm:"type:varchar(255);not null;index" json:"source_id"` // 原始数据中的ID，用于关联导入内容
 	SourceTitle string    `gorm:"type:varchar(500);not null" json:"source_title"`
-	TagIDs      []string  `gorm:"type:jsonb;default:'[]'" json:"tag_ids"`
 	Messages    []Message `gorm:"foreignKey:ConversationID" json:"messages,omitempty"`
+	Tags        []Tag     `gorm:"many2many:conversation_tags;" json:"tags,omitempty"`
 }
 
 // TableName returns the table name for the Conversation model
@@ -30,10 +30,10 @@ func (c *Conversation) ToESDocument() *ConversationDocument {
 		Model:       c.Model,
 		SourceID:    c.SourceID,
 		SourceTitle: c.SourceTitle,
-		TagIDs:      c.TagIDs,
 		CreatedAt:   c.CreatedAt,
 		UpdatedAt:   c.UpdatedAt,
 		Messages:    []MessageDocument{},
+		Tags:        []TagDocument{},
 	}
 
 	// 如果有预加载的 Messages，转换它们
@@ -41,6 +41,14 @@ func (c *Conversation) ToESDocument() *ConversationDocument {
 		doc.Messages = make([]MessageDocument, len(c.Messages))
 		for i, msg := range c.Messages {
 			doc.Messages[i] = msg.ToESDocument()
+		}
+	}
+
+	// 如果有预加载的 Tags，转换它们
+	if c.Tags != nil {
+		doc.Tags = make([]TagDocument, len(c.Tags))
+		for i, tag := range c.Tags {
+			doc.Tags[i] = tag.ToESDocument()
 		}
 	}
 

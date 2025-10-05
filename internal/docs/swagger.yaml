@@ -1,5 +1,61 @@
 basePath: /
 definitions:
+  request.CreateConversationRequest:
+    properties:
+      model:
+        type: string
+      provider:
+        type: string
+      source_id:
+        type: string
+      source_title:
+        type: string
+      tags:
+        items:
+          $ref: '#/definitions/request.TagRequest'
+        type: array
+      title:
+        type: string
+      user_id:
+        type: string
+    required:
+    - provider
+    - source_id
+    - source_title
+    - user_id
+    type: object
+  request.CreateTagRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
+  request.TagRequest:
+    properties:
+      id:
+        description: 可选：现有标签ID
+        type: string
+      name:
+        description: 必需：标签名称
+        type: string
+    type: object
+  request.UpdateConversationTagsRequest:
+    properties:
+      tags:
+        items:
+          $ref: '#/definitions/request.TagRequest'
+        type: array
+    required:
+    - tags
+    type: object
+  request.UpdateTagRequest:
+    properties:
+      name:
+        type: string
+    required:
+    - name
+    type: object
   response.ConversationListResponse:
     properties:
       conversations:
@@ -19,6 +75,10 @@ definitions:
         type: string
       source_id:
         type: string
+      tags:
+        items:
+          $ref: '#/definitions/response.TagResponse'
+        type: array
       title:
         type: string
       updated_at:
@@ -151,6 +211,20 @@ definitions:
         description: 搜索关键词，用于前端高亮
         type: string
     type: object
+  response.TagListResponse:
+    properties:
+      tags:
+        items:
+          $ref: '#/definitions/response.TagResponse'
+        type: array
+    type: object
+  response.TagResponse:
+    properties:
+      id:
+        type: string
+      name:
+        type: string
+    type: object
   response.UserResponse:
     properties:
       avatar:
@@ -220,6 +294,40 @@ paths:
           schema:
             $ref: '#/definitions/response.Response'
       summary: Get Conversations
+      tags:
+      - Conversations
+    post:
+      consumes:
+      - application/json
+      description: Create a new conversation with tags
+      parameters:
+      - description: Conversation data
+        in: body
+        name: conversation
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateConversationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Conversation created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.ConversationResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Create Conversation
       tags:
       - Conversations
   /api/v1/conversations/{id}:
@@ -337,6 +445,46 @@ paths:
           schema:
             $ref: '#/definitions/response.Response'
       summary: Get Conversation Messages
+      tags:
+      - Conversations
+  /api/v1/conversations/{id}/tags:
+    put:
+      consumes:
+      - application/json
+      description: Update tags for a specific conversation
+      parameters:
+      - description: Conversation ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tags data
+        in: body
+        name: tags
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateConversationTagsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tags updated successfully
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Conversation not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Update Conversation Tags
       tags:
       - Conversations
   /api/v1/messages:
@@ -514,6 +662,188 @@ paths:
       summary: Search Conversations
       tags:
       - Search
+  /api/v1/tags:
+    get:
+      consumes:
+      - application/json
+      description: Retrieve all tags
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tags list
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TagListResponse'
+              type: object
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get Tags
+      tags:
+      - Tags
+    post:
+      consumes:
+      - application/json
+      description: Create a new tag
+      parameters:
+      - description: Tag data
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Tag created successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TagResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Tag name already exists
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Create Tag
+      tags:
+      - Tags
+  /api/v1/tags/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Delete a specific tag by ID
+      parameters:
+      - description: Tag ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tag deleted successfully
+          schema:
+            $ref: '#/definitions/response.Response'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Tag not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Delete Tag
+      tags:
+      - Tags
+    get:
+      consumes:
+      - application/json
+      description: Retrieve a specific tag by ID
+      parameters:
+      - description: Tag ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tag details
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TagResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Tag not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get Tag
+      tags:
+      - Tags
+    put:
+      consumes:
+      - application/json
+      description: Update an existing tag
+      parameters:
+      - description: Tag ID
+        format: uuid
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Tag data
+        in: body
+        name: tag
+        required: true
+        schema:
+          $ref: '#/definitions/request.UpdateTagRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Tag updated successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/response.Response'
+            - properties:
+                data:
+                  $ref: '#/definitions/response.TagResponse'
+              type: object
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "404":
+          description: Tag not found
+          schema:
+            $ref: '#/definitions/response.Response'
+        "409":
+          description: Tag name already exists
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Update Tag
+      tags:
+      - Tags
   /api/v1/users/{id}:
     get:
       consumes:

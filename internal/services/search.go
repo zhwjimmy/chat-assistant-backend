@@ -4,31 +4,31 @@ import (
 	"strings"
 	"time"
 
-	"chat-assistant-backend/internal/models"
+	"chat-assistant-backend/internal/repositories"
 	"chat-assistant-backend/internal/response"
 
 	"github.com/google/uuid"
 )
 
-// SearchRepository interface abstracts search functionality
-type SearchRepository interface {
-	SearchConversationsWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) ([]*models.ConversationDocument, map[uuid.UUID][]*models.MessageDocument, map[uuid.UUID][]string, int64, error)
+// SearchService defines the interface for search service
+type SearchService interface {
+	SearchWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) (*response.SearchResponse, int64, error)
 }
 
-// SearchService handles search business logic
-type SearchService struct {
-	searchRepo SearchRepository
+// SearchServiceImpl handles search business logic
+type SearchServiceImpl struct {
+	searchRepo repositories.SearchRepository
 }
 
 // NewSearchService creates a new search service
-func NewSearchService(searchRepo SearchRepository) *SearchService {
-	return &SearchService{
+func NewSearchService(searchRepo repositories.SearchRepository) SearchService {
+	return &SearchServiceImpl{
 		searchRepo: searchRepo,
 	}
 }
 
 // SearchWithMatchedMessages performs a search and returns conversations with matched messages
-func (s *SearchService) SearchWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) (*response.SearchResponse, int64, error) {
+func (s *SearchServiceImpl) SearchWithMatchedMessages(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) (*response.SearchResponse, int64, error) {
 	// Validate and clean query
 	query = strings.TrimSpace(query)
 	if query == "" {

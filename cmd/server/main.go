@@ -8,7 +8,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"chat-assistant-backend/internal"
 	"chat-assistant-backend/internal/config"
 	"chat-assistant-backend/internal/docs"
 	"chat-assistant-backend/internal/logger"
@@ -48,7 +47,7 @@ func main() {
 	)
 
 	// Initialize application with Wire dependency injection
-	server, err := internal.InitializeApp()
+	server, err := InitializeApp()
 	if err != nil {
 		log.Fatal("Failed to initialize application", zap.Error(err))
 	}

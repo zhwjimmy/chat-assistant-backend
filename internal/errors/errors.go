@@ -63,6 +63,10 @@ const (
 	// Message errors
 	ErrCodeMessageNotFound = "MESSAGE_NOT_FOUND"
 
+	// Tag errors
+	ErrCodeTagNotFound   = "TAG_NOT_FOUND"
+	ErrCodeTagNameExists = "TAG_NAME_EXISTS"
+
 	// Import errors
 	ErrCodeUnsupportedPlatform = "UNSUPPORTED_PLATFORM"
 	ErrCodeInvalidFileFormat   = "INVALID_FILE_FORMAT"
@@ -90,6 +94,10 @@ var (
 
 	ErrConversationNotFound = NewAppError(ErrCodeConversationNotFound, "Conversation not found", http.StatusNotFound)
 	ErrMessageNotFound      = NewAppError(ErrCodeMessageNotFound, "Message not found", http.StatusNotFound)
+
+	// Tag errors
+	ErrTagNotFound   = NewAppError(ErrCodeTagNotFound, "Tag not found", http.StatusNotFound)
+	ErrTagNameExists = NewAppError(ErrCodeTagNameExists, "Tag name already exists", http.StatusConflict)
 
 	// Import errors
 	ErrUnsupportedPlatform = NewAppError(ErrCodeUnsupportedPlatform, "Unsupported import platform", http.StatusBadRequest)
