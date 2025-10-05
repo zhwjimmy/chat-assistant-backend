@@ -42,34 +42,49 @@ func (r *ElasticsearchRepositoryImpl) SearchConversationsWithMatchedMessages(que
 		return nil, nil, nil, 0, err
 	}
 
-	// 2. 提取匹配的消息和字段信息
+	// 2. 使用精确匹配过滤结果，确保关键词精确匹配
+	filteredDocs := make([]*models.ConversationDocument, 0, len(esDocs))
+	filteredHighlights := make([]map[string]interface{}, 0, len(highlights))
+
+	for i, doc := range esDocs {
+		// 检查是否真正包含关键词
+		if r.hasExactMatch(doc, query) {
+			filteredDocs = append(filteredDocs, doc)
+			filteredHighlights = append(filteredHighlights, highlights[i])
+		}
+	}
+
+	// 3. 按相关性评分排序
+	r.sortByRelevance(filteredDocs, query)
+
+	// 4. 提取匹配的消息和字段信息
 	matchedMessagesMap := make(map[uuid.UUID][]*models.MessageDocument)
 	matchedFieldsMap := make(map[uuid.UUID][]string)
 
-	for i, doc := range esDocs {
+	for i, doc := range filteredDocs {
 		conversationID := doc.ID
 		var matchedFields []string
 
 		// 检查哪些字段有高亮（即匹配）
-		if _, exists := highlights[i]["title"]; exists {
+		if _, exists := filteredHighlights[i]["title"]; exists {
 			matchedFields = append(matchedFields, "title")
 		}
-		if _, exists := highlights[i]["source_title"]; exists {
+		if _, exists := filteredHighlights[i]["source_title"]; exists {
 			matchedFields = append(matchedFields, "source_title")
 		}
-		if _, exists := highlights[i]["messages.content"]; exists {
+		if _, exists := filteredHighlights[i]["messages.content"]; exists {
 			matchedFields = append(matchedFields, "messages.content")
 		}
-		if _, exists := highlights[i]["messages.source_content"]; exists {
+		if _, exists := filteredHighlights[i]["messages.source_content"]; exists {
 			matchedFields = append(matchedFields, "messages.source_content")
 		}
-		if _, exists := highlights[i]["tags.name"]; exists {
+		if _, exists := filteredHighlights[i]["tags.name"]; exists {
 			matchedFields = append(matchedFields, "tags.name")
 		}
 
 		// 提取匹配的消息
-		_, hasContent := highlights[i]["messages.content"]
-		_, hasSourceContent := highlights[i]["messages.source_content"]
+		_, hasContent := filteredHighlights[i]["messages.content"]
+		_, hasSourceContent := filteredHighlights[i]["messages.source_content"]
 		if hasContent || hasSourceContent {
 			// 如果 ES 返回了消息字段的高亮，说明有消息匹配
 			// 最多返回 3 条消息，优先选择包含匹配关键词的消息
@@ -82,23 +97,13 @@ func (r *ElasticsearchRepositoryImpl) SearchConversationsWithMatchedMessages(que
 					break
 				}
 
-				// 检查消息是否包含匹配的关键词（通过高亮信息判断）
-				hasMatch := false
-				if contentHighlights, exists := highlights[i]["messages.content"]; exists {
-					if highlights, ok := contentHighlights.([]interface{}); ok {
-						for _, highlight := range highlights {
-							if highlightStr, ok := highlight.(string); ok {
-								cleanHighlight := removeHighlightTags(highlightStr)
-								if contains(msgDoc.Content, cleanHighlight) || contains(msgDoc.SourceContent, cleanHighlight) {
-									hasMatch = true
-									break
-								}
-							}
-						}
-					}
+				// 检查消息是否包含匹配的关键词（通过精确匹配判断）
+				content := msgDoc.Content
+				if content == "" {
+					content = msgDoc.SourceContent
 				}
 
-				if hasMatch {
+				if countKeywordMatches(content, query) > 0 {
 					matchedMessages = append(matchedMessages, &msgDoc)
 				}
 			}
@@ -126,19 +131,19 @@ func (r *ElasticsearchRepositoryImpl) SearchConversationsWithMatchedMessages(que
 			}
 
 			matchedMessagesMap[conversationID] = matchedMessages
-			fmt.Printf("DEBUG: Added %d messages (max 3) for conversation %s\n", len(matchedMessages), conversationID)
 		}
 
 		// 总是设置 matched_fields，即使为空
 		matchedFieldsMap[conversationID] = matchedFields
-		fmt.Printf("DEBUG: Matched fields for conversation %s: %v\n", conversationID, matchedFields)
 	}
 
-	return esDocs, matchedMessagesMap, matchedFieldsMap, total, nil
+	return filteredDocs, matchedMessagesMap, matchedFieldsMap, total, nil
 }
 
 // buildSearchQuery 构建 ES 搜索查询
 func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uuid.UUID, providerID *string, startDate, endDate *time.Time, page, limit int) []byte {
+	// 预处理查询词，确保精确匹配
+	query = strings.TrimSpace(query)
 	// 计算偏移量
 	offset := (page - 1) * limit
 
@@ -179,13 +184,13 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 		})
 	}
 
-	// 搜索查询 - 使用精确匹配
+	// 搜索查询 - 平衡精确匹配和相关性
 	searchQueries := []map[string]interface{}{
-		// 1. 完全精确匹配 - 最高优先级
+		// 1. 完全精确匹配 - 最高优先级 (权重: 10)
 		{
 			"multi_match": map[string]interface{}{
 				"query":  query,
-				"fields": []string{"title.exact^5", "source_title.exact^4"},
+				"fields": []string{"title.exact^10", "source_title.exact^8"},
 				"type":   "phrase",
 				"slop":   0,
 			},
@@ -196,7 +201,7 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 				"query": map[string]interface{}{
 					"multi_match": map[string]interface{}{
 						"query":  query,
-						"fields": []string{"messages.content.exact^5", "messages.source_content.exact^4"},
+						"fields": []string{"messages.content.exact^10", "messages.source_content.exact^8"},
 						"type":   "phrase",
 						"slop":   0,
 					},
@@ -209,18 +214,53 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 				"query": map[string]interface{}{
 					"multi_match": map[string]interface{}{
 						"query":  query,
-						"fields": []string{"tags.name.exact^3"},
+						"fields": []string{"tags.name.exact^6"},
 						"type":   "phrase",
 						"slop":   0,
 					},
 				},
 			},
 		},
-		// 添加词级别的精确匹配作为备选
+		// 2. 标准匹配 - 高优先级 (权重: 8)
+		{
+			"multi_match": map[string]interface{}{
+				"query":     query,
+				"fields":    []string{"title^8", "source_title^6"},
+				"type":      "best_fields",
+				"fuzziness": "AUTO",
+			},
+		},
+		{
+			"nested": map[string]interface{}{
+				"path": "messages",
+				"query": map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":     query,
+						"fields":    []string{"messages.content^8", "messages.source_content^6"},
+						"type":      "best_fields",
+						"fuzziness": "AUTO",
+					},
+				},
+			},
+		},
+		{
+			"nested": map[string]interface{}{
+				"path": "tags",
+				"query": map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":     query,
+						"fields":    []string{"tags.name^6"},
+						"type":      "best_fields",
+						"fuzziness": "AUTO",
+					},
+				},
+			},
+		},
+		// 3. 词级别匹配 - 中等优先级 (权重: 5)
 		{
 			"multi_match": map[string]interface{}{
 				"query":    query,
-				"fields":   []string{"title^2", "source_title"},
+				"fields":   []string{"title^5", "source_title^4"},
 				"type":     "cross_fields",
 				"operator": "and", // 所有词都必须匹配
 			},
@@ -231,9 +271,44 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 				"query": map[string]interface{}{
 					"multi_match": map[string]interface{}{
 						"query":    query,
-						"fields":   []string{"messages.content^2", "messages.source_content"},
+						"fields":   []string{"messages.content^5", "messages.source_content^4"},
 						"type":     "cross_fields",
 						"operator": "and", // 所有词都必须匹配
+					},
+				},
+			},
+		},
+		{
+			"nested": map[string]interface{}{
+				"path": "tags",
+				"query": map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":    query,
+						"fields":   []string{"tags.name^4"},
+						"type":     "cross_fields",
+						"operator": "and", // 所有词都必须匹配
+					},
+				},
+			},
+		},
+		// 4. 部分匹配 - 低优先级 (权重: 2)
+		{
+			"multi_match": map[string]interface{}{
+				"query":    query,
+				"fields":   []string{"title^2", "source_title^1"},
+				"type":     "best_fields",
+				"operator": "or", // 任意词匹配即可
+			},
+		},
+		{
+			"nested": map[string]interface{}{
+				"path": "messages",
+				"query": map[string]interface{}{
+					"multi_match": map[string]interface{}{
+						"query":    query,
+						"fields":   []string{"messages.content^2", "messages.source_content^1"},
+						"type":     "best_fields",
+						"operator": "or", // 任意词匹配即可
 					},
 				},
 			},
@@ -245,8 +320,8 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 					"multi_match": map[string]interface{}{
 						"query":    query,
 						"fields":   []string{"tags.name^2"},
-						"type":     "cross_fields",
-						"operator": "and", // 所有词都必须匹配
+						"type":     "best_fields",
+						"operator": "or", // 任意词匹配即可
 					},
 				},
 			},
@@ -284,8 +359,10 @@ func (r *ElasticsearchRepositoryImpl) buildSearchQuery(query string, userID *uui
 				"messages.source_content": map[string]interface{}{},
 				"tags.name":               map[string]interface{}{},
 			},
-			"pre_tags":  []string{"<mark>"},
-			"post_tags": []string{"</mark>"},
+			"pre_tags":            []string{"<mark>"},
+			"post_tags":           []string{"</mark>"},
+			"fragment_size":       150, // 限制高亮片段长度
+			"number_of_fragments": 3,   // 最多返回3个高亮片段
 		},
 	}
 
@@ -366,6 +443,11 @@ func (r *ElasticsearchRepositoryImpl) searchConversationDocumentsWithHighlights(
 	defer res.Body.Close()
 
 	if res.IsError() {
+		// 读取错误响应体以获取更详细的错误信息
+		var errorResponse map[string]interface{}
+		if err := json.NewDecoder(res.Body).Decode(&errorResponse); err == nil {
+			return nil, nil, 0, fmt.Errorf("search request failed with status: %s, error: %v", res.Status(), errorResponse)
+		}
 		return nil, nil, 0, fmt.Errorf("search request failed with status: %s", res.Status())
 	}
 
@@ -617,4 +699,203 @@ func removeHighlightTags(text string) string {
 	text = strings.ReplaceAll(text, "<mark>", "")
 	text = strings.ReplaceAll(text, "</mark>", "")
 	return text
+}
+
+// countKeywordMatches 计算关键词在文本中的精确匹配次数
+func countKeywordMatches(text, keyword string) int {
+	if text == "" || keyword == "" {
+		return 0
+	}
+
+	// 转换为小写进行匹配
+	lowerText := strings.ToLower(text)
+	lowerKeyword := strings.ToLower(keyword)
+
+	// 使用词边界匹配，确保精确匹配
+	// 例如："英语" 不会匹配 "英无语"
+	count := 0
+	start := 0
+
+	for {
+		pos := strings.Index(lowerText[start:], lowerKeyword)
+		if pos == -1 {
+			break
+		}
+
+		actualPos := start + pos
+
+		// 检查词边界
+		isWordBoundary := true
+
+		// 检查前一个字符
+		if actualPos > 0 {
+			prevChar := lowerText[actualPos-1]
+			if isWordChar(prevChar) {
+				isWordBoundary = false
+			}
+		}
+
+		// 检查后一个字符
+		if actualPos+len(lowerKeyword) < len(lowerText) {
+			nextChar := lowerText[actualPos+len(lowerKeyword)]
+			if isWordChar(nextChar) {
+				isWordBoundary = false
+			}
+		}
+
+		if isWordBoundary {
+			count++
+		}
+
+		start = actualPos + len(lowerKeyword)
+	}
+
+	return count
+}
+
+// isWordChar 检查字符是否为单词字符
+func isWordChar(c byte) bool {
+	return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		(c >= '0' && c <= '9') || c == '_' || c >= 128 // 包含中文字符
+}
+
+// calculateRelevanceScore 计算相关性评分
+func calculateRelevanceScore(conversationDoc *models.ConversationDocument, keyword string) float64 {
+	score := 0.0
+
+	// 计算标题匹配
+	title := conversationDoc.Title
+	if title == "" {
+		title = conversationDoc.SourceTitle
+	}
+
+	titleMatches := countRelevanceMatches(title, keyword)
+	score += float64(titleMatches) * 10.0 // 标题匹配权重最高
+
+	// 计算消息内容匹配
+	messageMatches := 0
+	for _, msg := range conversationDoc.Messages {
+		content := msg.Content
+		if content == "" {
+			content = msg.SourceContent
+		}
+		messageMatches += countRelevanceMatches(content, keyword)
+	}
+	score += float64(messageMatches) * 5.0 // 消息匹配权重中等
+
+	// 计算标签匹配
+	tagMatches := 0
+	for _, tag := range conversationDoc.Tags {
+		tagMatches += countRelevanceMatches(tag.Name, keyword)
+	}
+	score += float64(tagMatches) * 8.0 // 标签匹配权重较高
+
+	return score
+}
+
+// countRelevanceMatches 计算相关性匹配次数（更宽松的匹配）
+func countRelevanceMatches(text, keyword string) int {
+	if text == "" || keyword == "" {
+		return 0
+	}
+
+	// 转换为小写进行匹配
+	lowerText := strings.ToLower(text)
+	lowerKeyword := strings.ToLower(keyword)
+
+	// 直接包含匹配
+	if strings.Contains(lowerText, lowerKeyword) {
+		// 计算出现次数
+		count := 0
+		start := 0
+		for {
+			pos := strings.Index(lowerText[start:], lowerKeyword)
+			if pos == -1 {
+				break
+			}
+			count++
+			start = start + pos + len(lowerKeyword)
+		}
+		return count
+	}
+
+	// 对于短关键词，也使用词边界匹配
+	if len([]rune(keyword)) <= 3 {
+		return countKeywordMatches(text, keyword)
+	}
+
+	return 0
+}
+
+// hasExactMatch 检查对话是否包含相关匹配的关键词
+func (r *ElasticsearchRepositoryImpl) hasExactMatch(doc *models.ConversationDocument, keyword string) bool {
+	// 检查标题
+	title := doc.Title
+	if title == "" {
+		title = doc.SourceTitle
+	}
+
+	if r.containsKeyword(title, keyword) {
+		return true
+	}
+
+	// 检查消息内容
+	for _, msg := range doc.Messages {
+		content := msg.Content
+		if content == "" {
+			content = msg.SourceContent
+		}
+		if r.containsKeyword(content, keyword) {
+			return true
+		}
+	}
+
+	// 检查标签
+	for _, tag := range doc.Tags {
+		if r.containsKeyword(tag.Name, keyword) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// containsKeyword 检查文本是否包含关键词（更宽松的匹配）
+func (r *ElasticsearchRepositoryImpl) containsKeyword(text, keyword string) bool {
+	if text == "" || keyword == "" {
+		return false
+	}
+
+	// 转换为小写进行匹配
+	lowerText := strings.ToLower(text)
+	lowerKeyword := strings.ToLower(keyword)
+
+	// 直接包含匹配
+	if strings.Contains(lowerText, lowerKeyword) {
+		return true
+	}
+
+	// 对于中文，也检查词边界匹配
+	if len([]rune(keyword)) <= 3 { // 短关键词使用词边界匹配
+		return countKeywordMatches(text, keyword) > 0
+	}
+
+	return false
+}
+
+// sortByRelevance 按相关性评分排序对话
+func (r *ElasticsearchRepositoryImpl) sortByRelevance(docs []*models.ConversationDocument, keyword string) {
+	// 使用简单的冒泡排序，按相关性评分降序排列
+	n := len(docs)
+	for i := 0; i < n-1; i++ {
+		for j := 0; j < n-i-1; j++ {
+			score1 := calculateRelevanceScore(docs[j], keyword)
+			score2 := calculateRelevanceScore(docs[j+1], keyword)
+
+			if score1 < score2 {
+				// 交换位置
+				docs[j], docs[j+1] = docs[j+1], docs[j]
+			}
+		}
+	}
 }

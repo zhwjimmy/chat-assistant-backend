@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -106,7 +107,7 @@ func (h *SearchHandler) Search(c *gin.Context) {
 	// Perform search with matched messages
 	searchResponse, total, err := h.searchService.SearchWithMatchedMessages(query, userID, providerID, startDate, endDate, page, limit)
 	if err != nil {
-		response.InternalServerError(c, "INTERNAL_ERROR", "Internal server error", "Failed to perform search")
+		response.InternalServerError(c, "INTERNAL_ERROR", "Internal server error", fmt.Sprintf("Failed to perform search: %v", err))
 		return
 	}
 

@@ -29,7 +29,7 @@ elasticsearch:
     messages: "messages"
 
 search:
-  strategy: "postgres"  # postgres, elasticsearch, hybrid
+  strategy: "elasticsearch"  # postgres, elasticsearch, hybrid
   fallback: true
 
 cors:
