@@ -11,6 +11,7 @@ type Conversation struct {
 	Model       string    `gorm:"type:varchar(50)" json:"model"`                     // gpt-4, gemini-pro, llama-3 等
 	SourceID    string    `gorm:"type:varchar(255);not null;index" json:"source_id"` // 原始数据中的ID，用于关联导入内容
 	SourceTitle string    `gorm:"type:varchar(500);not null" json:"source_title"`
+	Metadata    string    `gorm:"type:text" json:"metadata"` // 可选元信息
 	Messages    []Message `gorm:"foreignKey:ConversationID" json:"messages,omitempty"`
 	Tags        []Tag     `gorm:"many2many:conversation_tags;" json:"tags,omitempty"`
 }

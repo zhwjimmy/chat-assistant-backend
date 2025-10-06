@@ -10,6 +10,7 @@ type Message struct {
 	Content        string    `gorm:"type:text;not null" json:"content"`
 	SourceID       string    `gorm:"type:varchar(255);not null;index" json:"source_id"` // 原始数据中的ID，用于关联导入内容
 	SourceContent  string    `gorm:"type:text;not null" json:"source_content"`          // 原始数据中的内容，用于对比和调试
+	Metadata       string    `gorm:"type:text" json:"metadata"`                         // 可选元信息
 }
 
 // TableName returns the table name for the Message model
