@@ -29,7 +29,7 @@ DATA_SYNC_PATH=./cmd/data-sync
 # Migration parameters
 MIGRATIONS_DIR=./internal/migrations
 
-.PHONY: all build clean test deps run docker-build docker-run gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean build-importer run-importer test-import build-migrate migrate-up migrate-down migrate-reset migrate-status migrate-version migrate-create migrate-fix migrate-validate build-es-manager es-status es-init es-recreate es-health build-data-sync sync-data sync-data-dry
+.PHONY: all build clean test deps run docker-build docker-run gen-swagger gen-wire lint help dev-db-up dev-db-down dev-db-logs dev-db-reset dev-setup dev-clean build-importer run-importer test-import build-migrate migrate-up migrate-down migrate-reset migrate-status migrate-version migrate-create migrate-fix migrate-validate build-es-manager es-status es-init es-recreate es-health build-data-sync sync-data sync-data-dry db-backup db-restore
 
 # Default target
 all: deps build
@@ -310,6 +310,17 @@ sync-data-dry:
 		$(GOCMD) run $(DATA_SYNC_PATH) -dry-run; \
 	fi
 
+# Database Backup and Restore Commands
+db-backup:
+	@echo "Creating database backup..."
+	@chmod +x scripts/backup.sh
+	@DB_CONTAINER_NAME=$(DB_CONTAINER_NAME) DB_NAME=$(DB_NAME) DB_USER=$(DB_USER) BACKUP_DIR=$(BACKUP_DIR) ./scripts/backup.sh
+
+db-restore:
+	@echo "Restoring database from backup..."
+	@chmod +x scripts/restore.sh
+	@DB_CONTAINER_NAME=$(DB_CONTAINER_NAME) DB_NAME=$(DB_NAME) DB_USER=$(DB_USER) BACKUP_DIR=$(BACKUP_DIR) ./scripts/restore.sh $(BACKUP_FILE)
+
 
 # Generate Swagger documentation
 gen-swagger:
@@ -418,6 +429,10 @@ help:
 	@echo "Data Sync:"
 	@echo "  sync-data       - Sync database data to Elasticsearch"
 	@echo "  sync-data-dry   - Dry run data sync (no actual sync)"
+	@echo ""
+	@echo "Database Backup & Restore:"
+	@echo "  db-backup       - Create compressed database backup to tmp/"
+	@echo "  db-restore      - Restore database from backup (use BACKUP_FILE=path/to/backup.dump.gz)"
 	@echo ""
 	@echo "Docker:"
 	@echo "  docker-build   - Build Docker image"
